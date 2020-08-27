@@ -1,0 +1,582 @@
+{
+  "gravity": [0, 0.3],
+  "spawn": [0, 0],
+  "constraints": [],
+  "_spawn": [3095, -235],
+  "serverScript": "\ndef hideObstacle(self, other, normal, localA, localB):\n   if self in waiting:\n      waiting[self] = time, waiting[self][1]\n      return\n\n   self.colour = 200, 0, 0\n   obstacle = next(filter(lambda obj: self.groups[0] in obj.groups, obstacles))\n   \n   def func():\n      add_object(obstacle)\n   \n   removeObject(obstacle)\n   waiting[self] = time, func\n\ndef showPlatform(self, other, normal, localA, localB):\n    if self in waiting:\n        waiting[self] = time, waiting[self][1]\n        return\n    \n    self.colour = 200, 0, 0\n    platform = next(filter(lambda obj: self.groups[0] in obj.groups, hiddenPlatforms))\n    \n    def func():\n        removeObject(platform)\n    \n    add_object(platform)\n    waiting[self] = time, func\n\ndef hideBeam(self, other, normal, localA, localB):\n    global beamButton\n    if beamButton is not None:\n        beamButton = time, beamButton[1]\n        return\n    \n    removeObject(beam)\n    \n    self.colour = 200, 0, 0\n    def func():\n        self.colour = self.initialState['colour']\n        add_object(beam)\n    beamButton = time, func\n\ndef movePlatformLeft(self, other, normal, localA, localB):\n   group = self.groups[0]\n   if group == '0':\n       dist = 554\n   elif group == '1':\n       dist = 300\n   elif group == '2':\n       dist = 312\n\n   for platform in platforms:\n      if group not in platform.groups:\n         continue\n      if platform.pos[0]+2 > dist + platform.initialState['pos'][0]:\n         target = dist + platform.initialState['pos'][0]\n         platform.vel = target - platform.pos[0], 0\n      else:\n         platform.vel = 2,0\n   self.colour = 200, 0, 0\n\n   def func():\n      for platform in platforms:\n         platform.vel = 0,0\n   \n   waiting[self] = time, func\n\ndef movePlatformRight(self, other, normal, localA, localB):\n   group = self.groups[0]\n   for platform in platforms:\n      if group not in platform.groups:\n         continue\n      if platform.pos[0]-2 < platform.initialState['pos'][0]:\n         platform.vel = platform.initialState['pos'][0]-platform.pos[0], 0\n      else:\n         platform.vel = -2,0\n   self.colour = 200, 0, 0\n\n   def func():\n      for platform in platforms:\n         platform.vel = 0,0\n   \n   waiting[self] = time, func\n\ndef onDeath(player): # Called whenever any player dies.\n    pass\n\ndef load(): # Will be called every time physics is reset\n    global platforms, waiting, obstacles, hiddenPlatforms, beam, beamButton, lilypads\n    platforms = getGroup('Platform')\n    obstacles = getGroup('Obstacle')\n    hiddenPlatforms = getGroup('HiddenPlatform')\n    for obj in hiddenPlatforms:\n        removeObject(obj)\n    beam = getGroup('Beam')[0]\n    beamButton = None\n    lilypads = []\n    waiting = {}\n\ndef tick(): # Will be called once per tick\n    global beamButton\n    for obj, (t, callback) in waiting.copy().items():\n       if t + 3 < time:\n          obj.colour = obj.initialState['colour']\n          callback()\n          del waiting[obj]\n    \n    if beamButton is not None and beamButton[0] + 20 < time:\n        beamButton[1]()\n        beamButton = None\n\n    if beamButton is None and all(obj.vel[0] < 2.5 for obj in lilypads):\n        obj = createObject({'physics':{'density':0.3}, 'colour':[217,217,0], 'type': 'polygon', 'points': [[-30,-10],[30,-10],[30,10],[-30,10]]})\n        obj.pos = 3710, -350\n        obj.vel = 3, 0\n        lilypads.append(obj)\n        if len(lilypads) > 3:\n            removeObject(lilypads.pop(0))\n    for obj in lilypads.copy():\n        if obj.pos[0] > 4930:\n            lilypads.remove(obj)\n            removeObject(obj)\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+  "clientScript": "def hideObstacle(self, other, normal, localA, localB):\n   if self in waiting:\n      waiting[self] = time, waiting[self][1]\n      return\n\n   self.colour = 200, 0, 0\n   def func():\n      pass\n   waiting[self] = time, func\n\ndef showPlatform(self, other, normal, localA, localB):\n    if self in waiting:\n        waiting[self] = time, waiting[self][1]\n        return\n    \n    self.colour = 200, 0, 0\n    def func():\n        pass\n    waiting[self] = time, func\n\ndef hideBeam(self, other, normal, localA, localB):\n    global beamButton\n    if beamButton is not None:\n        beamButton = time, beamButton[1]\n        return\n    \n    self.colour = 200, 0, 0\n    def func():\n        self.colour = self.initialState['colour']\n    beamButton = time, func\n\ndef movePlatformLeft(self, other, normal, localA, localB):\n   group = self.groups[0]\n   if group == '0':\n       dist = 554\n   elif group == '1':\n       dist = 300\n   elif group == '2':\n       dist = 312\n\n   for platform in platforms:\n      if group not in platform.groups:\n         continue\n      if platform.pos[0]+2 > dist + platform.initialState['pos'][0]:\n         target = dist + platform.initialState['pos'][0]\n         platform.vel = target - platform.pos[0], 0\n      else:\n         platform.vel = 2,0\n   self.colour = 200, 0, 0\n\n   def func():\n      for platform in platforms:\n         platform.vel = 0,0\n   \n   waiting[self] = time, func\n\ndef movePlatformRight(self, other, normal, localA, localB):\n   group = self.groups[0]\n   for platform in platforms:\n      if group not in platform.groups:\n         continue\n      if platform.pos[0]-2 < platform.initialState['pos'][0]:\n         platform.vel = platform.initialState['pos'][0]-platform.pos[0], 0\n      else:\n         platform.vel = -2,0\n   self.colour = 200, 0, 0\n\n   def func():\n      for platform in platforms:\n         platform.vel = 0,0\n   \n   waiting[self] = time, func\n\ndef onDeath(player): # Called whenever any player dies.\n    pass\n\ndef load(): # Will be called every time physics is reset\n    global platforms, waiting, obstacles, beamButton\n    platforms = []#getGroup('Platform')\n    obstacles = []#getGroup('Obstacle')\n    beamButton = None\n    waiting = {}\n\ndef add_object(obj):\n    if not isinstance(obj, Object):\n        return\n    if 'Platform' in obj.groups:\n        platforms.append(obj)\n    if 'Obstacle' in obj.groups:\n        obstacles.append(obj)\n\ndef tick(): # Will be called once per tick\n    global beamButton\n    for obj, (t, callback) in waiting.copy().items():\n       if t + 3 < time:\n          obj.colour = obj.initialState['colour']\n          callback()\n          del waiting[obj]\n\n    if beamButton is not None and beamButton[0] + 20 < time:\n        beamButton[1]()\n        beamButton = None\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+  "objects": [
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1294, -163], [1294, -110], [1320, -110], [1320, -163]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1135, -244], [1135, -110], [1161, -110], [1161, -244]],
+      "animated": {"period": 120, "xOffset": 0, "yOffset": -80, "tOffset": 0}
+    },
+    {
+      "colour": [89, 204, 198],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "checkpoint": {"colour": [204, 50, 200], "xOffset": 0, "yOffset": 30},
+      "points": [[1970, -397], [1970, -377], [2014, -377], [2014, -397]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1758, -181], [1826, -181], [1826, -207], [1758, -207]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1482, -306], [1482, -181], [1498, -181], [1498, -306]]
+    },
+    {
+      "colour": [129, 188, 85],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[636, -71], [636, -50], [1000, -50], [1000, -71]]
+    },
+    {
+      "colour": [70, 56, 187],
+      "friction": 0.2,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["0", "Platform"],
+      "type": "polygon",
+      "points": [[1000, -107], [1000, -91], [1088, -91], [1088, -107]]
+    },
+    {
+      "colour": [128, 188, 84],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1262, -179], [1262, -163], [1350, -163], [1350, -179]]
+    },
+    {
+      "colour": [128, 188, 84],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1955, -285], [1955, -269], [2043, -269], [2043, -285]]
+    },
+    {
+      "colour": [204, 149, 36],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[2564, -181], [2564, -165], [2652, -165], [2652, -181]],
+      "animated": {"period": 700, "xOffset": -550, "yOffset": 0, "tOffset": 0}
+    },
+    {
+      "colour": [128, 188, 84],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1482, -181], [1482, -165], [1570, -165], [1570, -181]]
+    },
+    {
+      "colour": [89, 204, 198],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "checkpoint": {"colour": [204, 50, 200], "xOffset": 0, "yOffset": 30},
+      "points": [[686, -161], [686, -141], [730, -141], [730, -161]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": ["Obstacle", "b"],
+      "type": "polygon",
+      "points": [[2189, -304], [2189, -110], [2215, -110], [2215, -304]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": ["Obstacle", "c"],
+      "type": "polygon",
+      "points": [[2339, -304], [2339, -110], [2365, -110], [2365, -304]]
+    },
+    {
+      "colour": [89, 204, 198],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "checkpoint": {"colour": [204, 50, 200], "xOffset": 0, "yOffset": 30},
+      "points": [[1498, -306], [1498, -286], [1542, -286], [1542, -306]]
+    },
+    {
+      "colour": [128, 188, 84],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[2652, -181], [2652, -165], [2740, -165], [2740, -181]]
+    },
+    {
+      "colour": [125, 125, 125],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["HiddenPlatform", "a"],
+      "type": "polygon",
+      "points": [[2740, -181], [2740, -165], [2838, -165], [2838, -181]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[2838, -273], [2838, -165], [2854, -165], [2854, -273]]
+    },
+    {
+      "colour": [70, 56, 187],
+      "friction": 0.2,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Platform", "1", "2"],
+      "type": "polygon",
+      "points": [[1570, -181], [1570, -165], [1658, -165], [1658, -181]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": ["Obstacle", "a"],
+      "type": "polygon",
+      "points": [[1418, -304], [1418, -110], [1444, -110], [1444, -304]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": ["Obstacle", "a"],
+      "type": "polygon",
+      "points": [[-151, -154], [-151, 40], [-125, 40], [-125, -154]]
+    },
+    {
+      "colour": [89, 204, 198],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "checkpoint": {"colour": [204, 50, 200], "xOffset": 0, "yOffset": 30},
+      "points": [[2696, -299], [2696, -279], [2740, -279], [2740, -299]]
+    },
+    {
+      "colour": [129, 188, 85],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-151, 40], [-151, 61], [6858, 61], [6858, 40]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": ["Obstacle", "a"],
+      "type": "polygon",
+      "points": [[6832, -154], [6832, 40], [6858, 40], [6858, -154]]
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["1", "2"],
+      "type": "polygon",
+      "points": [[1680, 36], [1680, 41], [1725, 41], [1725, 36]],
+      "trigger": "movePlatformRight"
+    },
+    {
+      "colour": [128, 188, 84],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1075, 36], [1100, 38], [1125, 36], [1125, 40], [1075, 40]]
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["0"],
+      "type": "polygon",
+      "points": [[1030, 36], [1030, 41], [1075, 41], [1075, 36]],
+      "trigger": "movePlatformRight"
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["0"],
+      "type": "polygon",
+      "points": [[1125, 36], [1125, 41], [1170, 41], [1170, 36]],
+      "trigger": "movePlatformLeft"
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["2"],
+      "type": "polygon",
+      "points": [[3173, 36], [3173, 41], [3218, 41], [3218, 36]],
+      "trigger": "movePlatformRight"
+    },
+    {
+      "colour": [128, 188, 84],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[3218, 36], [3243, 38], [3268, 36], [3268, 40], [3218, 40]]
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["2"],
+      "type": "polygon",
+      "points": [[3268, 36], [3268, 41], [3313, 41], [3313, 36]],
+      "trigger": "movePlatformLeft"
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["c"],
+      "type": "polygon",
+      "points": [[2969, 38], [2969, 43], [3014, 43], [3014, 38]],
+      "trigger": "showPlatform"
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["a"],
+      "type": "polygon",
+      "points": [[2781, 38], [2781, 43], [2826, 43], [2826, 38]],
+      "trigger": "showPlatform"
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["b"],
+      "type": "polygon",
+      "points": [[2875, 38], [2875, 43], [2920, 43], [2920, 38]],
+      "trigger": "showPlatform"
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["c"],
+      "type": "polygon",
+      "points": [[2331, 38], [2331, 43], [2376, 43], [2376, 38]],
+      "trigger": "hideObstacle"
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["b"],
+      "type": "polygon",
+      "points": [[2181, 38], [2181, 43], [2226, 43], [2226, 38]],
+      "trigger": "hideObstacle"
+    },
+    {
+      "colour": [128, 188, 84],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1725, 36], [1750, 38], [1775, 36], [1775, 40], [1725, 40]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1642, -165], [1642, -110], [1658, -110], [1658, -165]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.0,
+      "restitution": 0.0,
+      "lethal": true,
+      "groups": ["Obstacle", "d"],
+      "type": "polygon",
+      "points": [[2489, -304], [2489, -110], [2515, -110], [2515, -304]]
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["1", "2"],
+      "type": "polygon",
+      "points": [[1775, 36], [1775, 41], [1820, 41], [1820, 36]],
+      "trigger": "movePlatformLeft"
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["d"],
+      "type": "polygon",
+      "points": [[2481, 38], [2481, 43], [2526, 43], [2526, 38]],
+      "trigger": "hideObstacle"
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[3914, 38], [3914, 43], [3959, 43], [3959, 38]],
+      "trigger": "hideBeam"
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["a"],
+      "type": "polygon",
+      "points": [[1410, 38], [1410, 43], [1455, 43], [1455, 38]],
+      "trigger": "hideObstacle"
+    },
+    {
+      "colour": [231, 231, 231],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["1", "2"],
+      "type": "polygon",
+      "points": [[1775, 36], [1775, 41], [1820, 41], [1820, 36]],
+      "trigger": "movePlatformLeft"
+    },
+    {
+      "colour": [125, 125, 125],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["c", "HiddenPlatform"],
+      "type": "polygon",
+      "points": [[2968, -181], [2968, -165], [3066, -165], [3066, -181]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[2952, -273], [2952, -165], [2968, -165], [2968, -273]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[3204, -270], [3204, -181], [3212, -181], [3212, -270]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[3308, -270], [3308, -181], [3316, -181], [3316, -270]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[3412, -270], [3412, -181], [3420, -181], [3420, -270]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[3516, -270], [3516, -181], [3524, -181], [3524, -270]]
+    },
+    {
+      "colour": [128, 188, 84],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[3066, -181], [3066, -165], [3204, -165], [3204, -181]]
+    },
+    {
+      "colour": [153, 254, 254],
+      "friction": 0.0,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": ["Platform", "2"],
+      "type": "polygon",
+      "points": [[3204, -181], [3204, -165], [3316, -165], [3316, -181]]
+    },
+    {
+      "colour": [89, 204, 198],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "checkpoint": {"colour": [204, 50, 200], "xOffset": 0, "yOffset": 30},
+      "points": [[3066, -299], [3066, -279], [3110, -279], [3110, -299]]
+    },
+    {
+      "colour": [89, 204, 198],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "checkpoint": {"colour": [204, 50, 200], "xOffset": 0, "yOffset": 30},
+      "points": [[3628, -299], [3628, -279], [3672, -279], [3672, -299]]
+    },
+    {
+      "colour": [128, 188, 84],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[3628, -181], [3628, -165], [3735, -165], [3735, -181]]
+    },
+    {
+      "colour": [101, 133, 172],
+      "friction": 0.0,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": ["Beam"],
+      "type": "polygon",
+      "points": [[3725, -309], [3725, -289], [4967, -289], [4967, -309]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[3972, -126], [3972, -71], [3988, -71], [3988, -126]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[4322, -126], [4322, -71], [4338, -71], [4338, -126]]
+    },
+    {
+      "colour": [187, 66, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[4672, -126], [4672, -71], [4688, -71], [4688, -126]]
+    },
+    {
+      "colour": [125, 125, 125],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["b", "HiddenPlatform"],
+      "type": "polygon",
+      "points": [[2854, -181], [2854, -165], [2952, -165], [2952, -181]]
+    },
+    {
+      "colour": [188, 67, 23],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1000, -71], [1000, -50], [4967, -50], [4967, -71]]
+    }
+  ]
+}

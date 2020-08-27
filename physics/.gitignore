@@ -1,0 +1,8 @@
+a.out
+*.so
+*.pyd
+build/
+
+cython_debug/
+
+main.cpp

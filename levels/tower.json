@@ -1,0 +1,287 @@
+{
+  "gravity": [0, 0.3],
+  "spawn": [0, 0],
+  "constraints": [],
+  "serverScript": "def handler(self, other, normal, localA, localB): \n   return other.vel[1] < 0\n\ndef button1(self, other, normal, localA, localB):\n   if self.colour != [100,100,100]:\n      return\n   self.colour = [255,100,100]\n   obj = createObject({'type':'circle', 'groups':[], 'radius':50, 'pos': [-400,-300], 'colour':[50,100,50], 'physics':{'density':0.3}, 'restitution': 0.5, 'friction': 0.5, 'lethal': False})\n   obj.vel = 9, -7\n\ndef load():\n    pass\n\ndef tick():\n    pass\n\n",
+  "objects": [
+    {
+      "colour": [88, 169, 32],
+      "friction": 0.5,
+      "restitution": 0.5,
+      "lethal": false,
+      "groups": [],
+      "points": [[-1164, 20], [-1164, 43], [627, 43], [627, 20]],
+      "type": "polygon"
+    },
+    {
+      "colour": [65, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-104, -83], [-104, -64], [-18, -64], [-18, -83]],
+      "trigger": "handler"
+    },
+    {
+      "colour": [100, 100, 100],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-213, 14], [-213, 29], [-182, 29], [-182, 14]],
+      "trigger": "button1"
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[207, -423], [207, -348], [224, -348], [224, -423]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[179, -331], [254, -331], [254, -348], [179, -348]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[140, -239], [215, -239], [215, -256], [140, -256]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[179, -147], [254, -147], [254, -164], [179, -164]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[246, -147], [246, -72], [263, -72], [263, -147]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[170, -147], [170, -72], [187, -72], [187, -147]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[216, -55], [291, -55], [291, -72], [216, -72]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[207, -55], [207, 20], [224, 20], [224, -55]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[283, -55], [283, 20], [300, 20], [300, -55]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[359, -55], [359, 20], [376, 20], [376, -55]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[131, -55], [131, 20], [148, 20], [148, -55]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[141, -55], [216, -55], [216, -72], [141, -72]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[66, -55], [141, -55], [141, -72], [66, -72]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[291, -55], [366, -55], [366, -72], [291, -72]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[66, -55], [66, 20], [83, 20], [83, -55]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[104, -147], [179, -147], [179, -164], [104, -164]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[254, -147], [329, -147], [329, -164], [254, -164]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[104, -147], [104, -72], [121, -72], [121, -147]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[312, -147], [312, -72], [329, -72], [329, -147]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[215, -239], [290, -239], [290, -256], [215, -256]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[140, -239], [140, -164], [157, -164], [157, -239]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[273, -239], [273, -164], [290, -164], [290, -239]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[179, -331], [179, -256], [196, -256], [196, -331]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[237, -331], [237, -256], [254, -256], [254, -331]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [217, 123, 0],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[207, -239], [207, -164], [224, -164], [224, -239]],
+      "type": "polygon",
+      "physics": {"density": 0.1}
+    }
+  ]
+}

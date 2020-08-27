@@ -1,0 +1,6 @@
+pygame
+numpy
+scipy
+pyopengl
+pyopengl_accelerate
+fonttools

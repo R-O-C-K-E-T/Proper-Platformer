@@ -1,0 +1,309 @@
+{
+  "gravity": [0, 0.3],
+  "_spawn": [1950, 0],
+  "constraints": [],
+  "spawn": [0, 0],
+  "serverScript": "def handler(self, other, normal, localA, localB):\n   for ball in getGroup(*self.groups):\n      ball.reset()\n\n",
+  "objects": [
+    {
+      "colour": [217, 0, 0],
+      "friction": 0.8,
+      "restitution": 0.0,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1263, 144], [1267, 162], [1743, 61], [1740, 45]]
+    },
+    {
+      "colour": [68, 217, 217],
+      "friction": 2.0,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": ["Balls", "1"],
+      "type": "circle",
+      "radius": 45,
+      "pos": [131, 95],
+      "physics": {"density": 0.3}
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[82, 162], [82, 89], [60, 89], [60, 162]],
+      "type": "polygon"
+    },
+    {
+      "colour": [175, 190, 95],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["1"],
+      "type": "polygon",
+      "points": [[-174, 81], [-174, 95], [-116, 95], [-116, 81]],
+      "trigger": "handler"
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[60, 89], [-215, 89], [-215, 111], [60, 111]],
+      "type": "polygon"
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[2320, 27], [2320, -46], [2303, -46], [2303, 27]],
+      "type": "polygon"
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[2570, 27], [2570, -46], [2553, -46], [2553, 27]],
+      "type": "polygon"
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[2820, 27], [2820, -46], [2803, -46], [2803, 27]],
+      "type": "polygon"
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[3070, 27], [3070, -46], [3053, -46], [3053, 27]],
+      "type": "polygon"
+    },
+    {
+      "colour": [217, 0, 0],
+      "friction": 0.8,
+      "restitution": 0.9,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[2012, 121], [2012, 140], [3361, 140], [3361, 121]]
+    },
+    {
+      "colour": [80, 216, 40],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1737, 45], [1737, 15], [1757, 15], [1757, 45]]
+    },
+    {
+      "colour": [68, 217, 217],
+      "friction": 2.0,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": ["Balls", "2"],
+      "type": "circle",
+      "radius": 45,
+      "pos": [2061, 72],
+      "physics": {"density": 0.3}
+    },
+    {
+      "colour": [175, 190, 95],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["2"],
+      "type": "polygon",
+      "points": [[1778, 37], [1778, 51], [1836, 51], [1836, 37]],
+      "trigger": "handler"
+    },
+    {
+      "colour": [120, 185, 223],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1881, -90], [1881, -72], [1900, -72], [1900, -90]],
+      "checkpoint": {"colour": [218, 95, 223], "xOffset": 0, "yOffset": 40}
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[2012, 140], [2012, 67], [1990, 67], [1990, 140]],
+      "type": "polygon"
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[2012, 45], [1737, 45], [1737, 67], [2012, 67]],
+      "type": "polygon"
+    },
+    {
+      "colour": [80, 216, 40],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[3361, 118], [3361, 88], [3381, 88], [3381, 118]]
+    },
+    {
+      "colour": [68, 217, 217],
+      "friction": 2.0,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": ["Balls", "3"],
+      "type": "circle",
+      "radius": 45,
+      "pos": [3685, 145],
+      "physics": {"density": 0.3}
+    },
+    {
+      "colour": [175, 190, 95],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["3"],
+      "type": "polygon",
+      "points": [[3402, 110], [3402, 124], [3460, 124], [3460, 110]],
+      "trigger": "handler"
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[3636, 213], [3636, 140], [3614, 140], [3614, 213]],
+      "type": "polygon"
+    },
+    {
+      "colour": [217, 0, 0],
+      "friction": 0.8,
+      "restitution": 0.9,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[82, 144], [82, 163], [1267, 163], [1267, 144]]
+    },
+    {
+      "colour": [217, 0, 0],
+      "friction": 0.8,
+      "restitution": 0.9,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[3636, 194], [3636, 213], [3916, 213], [3916, 194]]
+    },
+    {
+      "colour": [217, 0, 0],
+      "friction": 0.8,
+      "restitution": 0.9,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[3897, 341], [3916, 341], [3916, 213], [3897, 213]]
+    },
+    {
+      "colour": [217, 0, 0],
+      "friction": 0.8,
+      "restitution": 0.9,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[3916, 322], [3916, 341], [4196, 341], [4196, 322]]
+    },
+    {
+      "colour": [217, 0, 0],
+      "friction": 0.8,
+      "restitution": 0.9,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[4177, 469], [4196, 469], [4196, 341], [4177, 341]]
+    },
+    {
+      "colour": [217, 0, 0],
+      "friction": 0.8,
+      "restitution": 0.9,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[4196, 450], [4196, 469], [4476, 469], [4476, 450]]
+    },
+    {
+      "colour": [217, 0, 0],
+      "friction": 0.8,
+      "restitution": 0.9,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[4457, 597], [4476, 597], [4476, 469], [4457, 469]]
+    },
+    {
+      "colour": [217, 0, 0],
+      "friction": 0.8,
+      "restitution": 0.9,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[4476, 578], [4476, 597], [5047, 597], [5047, 578]]
+    },
+    {
+      "colour": [120, 185, 223],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[3505, -17], [3505, 1], [3524, 1], [3524, -17]],
+      "checkpoint": {"colour": [218, 95, 223], "xOffset": 0, "yOffset": 40}
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[3636, 118], [3361, 118], [3361, 140], [3636, 140]],
+      "type": "polygon"
+    },
+    {
+      "colour": [120, 185, 223],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[5191, 440], [5191, 458], [5210, 458], [5210, 440]],
+      "checkpoint": {"colour": [218, 95, 223], "xOffset": 0, "yOffset": 40}
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": [],
+      "points": [[5322, 575], [5047, 575], [5047, 597], [5322, 597]],
+      "type": "polygon"
+    }
+  ]
+}

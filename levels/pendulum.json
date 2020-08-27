@@ -1,0 +1,1250 @@
+{
+  "gravity": [0, 0.3],
+  "spawn": [-1000, 0],
+  "constraints": [{"type": "pivot", "objects": [1, 0], "pos": [0, -250]}, {"type": "pivot", "objects": [8, 19], "pos": [-213, 45]}, {"type": "pivot", "objects": [3, 2], "pos": [-307, 91]}, {"type": "pivot", "objects": [4, 3], "pos": [-354, 91]}, {"type": "pivot", "objects": [5, 4], "pos": [-401, 91]}, {"type": "pivot", "objects": [6, 5], "pos": [-448, 91]}, {"type": "pivot", "objects": [9, 6], "pos": [-495, 89]}, {"type": "pivot", "objects": [9, 7], "pos": [-495, 44]}, {"type": "pivot", "objects": [12, 10], "pos": [81, 9]}, {"type": "pivot", "objects": [12, 11], "pos": [182, 9]}, {"type": "fixed", "objects": [15, 13], "pos": [147, -24]}, {"type": "fixed", "objects": [15, 12], "pos": [148, 4]}, {"type": "fixed", "objects": [14, 12], "pos": [116, 3]}, {"type": "fixed", "objects": [14, 13], "pos": [116, -24]}, {"type": "fixed", "objects": [16, 13], "pos": [76, -32]}, {"type": "fixed", "objects": [17, 13], "pos": [186, -33]}, {"type": "pivot", "objects": [36, 2], "pos": [-260, 91]}, {"type": "pivot", "objects": [36, 8], "pos": [-213, 90]}, {"type": "fixed", "pos": [-1392, 917], "objects": [51, 52]}, {"type": "fixed", "pos": [-1331, 928], "objects": [53, 51]}, {"type": "fixed", "pos": [-1270, 917], "objects": [50, 51]}, {"type": "pivot", "pos": [-1880, -475], "objects": [60, 58]}, {"type": "pivot", "pos": [-1730, -475], "objects": [60, 59]}, {"type": "pivot", "pos": [-1180, -475], "objects": [63, 61]}, {"type": "pivot", "pos": [-1030, -475], "objects": [63, 62]}, {"type": "pivot", "objects": [73, 71], "pos": [-401, -620]}, {"type": "pivot", "objects": [73, 72], "pos": [-241, -620]}, {"type": "pivot", "pos": [778, 945], "objects": [116, 114]}, {"type": "pivot", "pos": [701, 944], "objects": [116, 115]}, {"type": "pivot", "pos": [624, 945], "objects": [118, 115]}, {"type": "pivot", "pos": [547, 945], "objects": [118, 117]}, {"type": "pivot", "pos": [470, 945], "objects": [120, 117]}, {"type": "pivot", "pos": [393, 945], "objects": [120, 119]}, {"type": "pivot", "pos": [316, 945], "objects": [121, 119]}, {"type": "pivot", "pos": [239, 945], "objects": [122, 121]}, {"type": "pivot", "pos": [855, 945], "objects": [123, 114]}, {"type": "pivot", "pos": [933, 944], "objects": [124, 123]}, {"type": "pivot", "pos": [1086, 945], "objects": [126, 125]}, {"type": "pivot", "pos": [1010, 945], "objects": [125, 124]}, {"type": "pivot", "objects": [122, 40], "pos": [162, 946]}, {"type": "pivot", "objects": [126, 92], "pos": [1165, 944]}],
+  "_spawn": [1700, -30],
+  "serverScript": "def left(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   for obj in wheels:\n      obj.rotV = obj.rotV - 0.005\n   waiting[self] = time\n   self.colour = [217,0,0]\n\ndef right(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   for obj in wheels:\n      obj.rotV = obj.rotV + 0.005\n   waiting[self] = time\n   self.colour = [217,0,0]\n\ndef onDeath(player):\n   for obj in deathReset.get(player.checkpoint, []):\n      obj.reset()\n\ndef hideBeam(self, other, normal, localA, localB):\n   global beamButton\n   self.colour = [217,0,0]\n   self.dirtyProps = True\n   if beamButton is None:\n      removeObject(beam)\n   beamButton = time, self\n\ndef thrustUp(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n\n   rot = spaceship[0].rot - math.pi / 2\n   vec = math.cos(rot), math.sin(rot)\n\n   power = 0.11 if spaceship[0].pos[1] > -150 else 0.02\n   \n   vec = vec[0]*power, vec[1]*power\n   for obj in spaceship:\n      obj.vel = obj.vel[0] + vec[0], obj.vel[1] + vec[1]\n\ndef thrustLeft(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n   for obj in spaceship:\n      obj.rotV -= 0.005\n\ndef thrustRight(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n   for obj in spaceship:\n      obj.rotV += 0.005\n\ndef launch(self, other, normal, localA, localB):\n   if other in waitingLaunch:\n      targetTime = waitingLaunch[other] + 30\n      if targetTime == time:\n         other.vel = other.vel[0], -15\n      elif targetTime > time:\n         return\n      del waitingLaunch[other]\n   else:\n      waitingLaunch[other] = time\n\ndef load(): # Will be called every time physics is reset\n   global waiting, deathReset, wheels, balance, balance2, sliders, ninja, beam, beamButton, balls, lilypads, base, spaceship, swings, swingEnergy, waitingLaunch, cart\n   waiting = {}\n   spaceship = getGroup('Spaceship')\n   deathReset = {getGroup('Checkpoint1')[0]:getGroup('Car'), getGroup('Checkpoint2')[0]:getGroup('Tower'), getGroup('Checkpoint3')[0]:spaceship}\n   wheels = getGroup('Wheels')\n   balance = getGroup('Balance')\n   balance2 = getGroup('Balance2')\n   for obj in balance + balance2:\n      obj.setMass(-1)\n      obj.dirtyProps = True\n   ninja = getGroup('Ninja')[0]\n   beam = getGroup('Beam')[0]\n   beamButton = None\n   sliders = []\n   balls = []\n   lilypads = []\n   base = {'physics': {'density': 1.0}, 'restitution':0.2, 'friction':0.8, 'colour':[200,200,0]}\n   for obj in getGroup('Pivots'):\n      obj.setMoment(1)\n      obj.dirtyProps = True\n   swingEnergy = 0.3*50\n   swings = getGroup('Swings')\n   for i, obj in enumerate(swings):\n      direction = 1 if i % 2 == 0 else -1\n      obj.vel = direction * math.sqrt(2*swingEnergy),0\n   waitingLaunch = {}\n   cart = getGroup('Cart')\n\ndef tick(): # Will be called once per tick\n   global waiting, beamButton\n   for obj, t in waiting.copy().items():\n      if t + 3 < time:\n          del waiting[obj]\n          obj.colour = obj.initialState['colour']\n          obj.dirtyProps = True\n   if beamButton is not None and beamButton[0] + 20 < time:\n      beamButton[1].colour = beamButton[1].initialState['colour']\n      beamButton[1].dirtyProps = True\n      add_object(beam)\n      beamButton = None\n   for obj in balance:\n      obj.rotV *= 0.98\n      obj.rotV -= obj.rot*0.003\n\n   for obj in balance2:\n      obj.rotV *= 0.995\n      diff = (obj.rot + math.pi/2) % (math.pi) - math.pi/2\n      obj.rotV -= diff*0.0015\n\n   if time % 60 == 0:\n      obj = createObject({**base, 'type': 'polygon', 'points': [[-30,-10],[30,-10],[30,10],[-30,10]]})\n      obj.pos = 320, 450\n      sliders.append(obj)\n      \n      if len(sliders) > 6:\n         removeObject(sliders.pop(0))\n\n   if beamButton is None and all(abs(obj.vel[0]) < 0.2 for obj in lilypads):\n      obj = createObject({**base, 'type': 'polygon', 'points': [[-30,-10],[30,-10],[30,10],[-30,10]]})\n      obj.pos = 70, 600\n      obj.vel = -3, 0\n      lilypads.append(obj)\n\n   for obj in lilypads.copy():\n      if obj.pos[0] < -1050:\n         lilypads.remove(obj)\n         removeObject(obj)\n   '''if len(lilypads) > 8:\n      removeObject(lilypads.pop(0))'''\n   if time % 12 == 1:\n      for obj in lilypads.copy():\n         r, g, b = obj.colour\n         new_colour = r-1,g-1,b+1\n         if min(new_colour) < 0:\n            lilypads.remove(obj)\n            removeObject(obj)\n         else:\n            obj.colour = new_colour\n            obj.dirtyProps = True\n\n   if time % 60 == 2:\n      obj = createObject({'physics': {'density': 2.0}, 'friction':0.8, 'restitution':0.95, 'lethal':True, 'type':'circle', 'pos':[-1730, -400], 'radius':30, 'colour':[255,0,0], 'groups':[]})\n      obj.rotV = 0.3\n      balls.append(obj)\n   for obj in balls:\n      obj.rotV = 0.3\n   if len(balls) > 3:\n      removeObject(balls.pop(0))\n\n   if ninja.pos[0] < 500:\n      ninja.rotV += 0.005\n   elif ninja.pos[0] > 750:\n      ninja.rotV -= 0.005\n   else:\n      ninja.rotV *= 0.1 / abs(ninja.rotV)\n\n   power = 0.25 if spaceship[0].pos[1] > -250 else 0.05\n   rot = spaceship[0].rot - math.pi/2\n   vec = math.cos(rot)*power, math.sin(rot)*power\n   for obj in spaceship:\n      obj.rotV = (obj.rotV - obj.rot*0.01) * 0.95\n      obj.vel = (obj.vel[0]+vec[0])*0.99, (obj.vel[1]+vec[1])*0.99\n\n   lowestHeight = -475\n   avg = sum(math.sqrt(obj.vel[0]**2+obj.vel[1]**2) for obj in swings) / len(swings)\n   for obj in swings:\n      potential = min(-0.3*(obj.pos[1]-lowestHeight), swingEnergy)\n      targetVel = math.sqrt(2*(swingEnergy-potential))/2 + avg/2\n\n      vec = obj.vel\n      vel = math.sqrt(obj.vel[0]**2 + obj.vel[1]**2)\n      \n      factor = (49/50 + targetVel/vel * 1/50)\n      obj.vel = vec[0] * factor, vec[1] * factor\n\n   if cart[0].pos[0] > 1600:\n      for obj in cart:\n         obj.reset()\n\n\n\n\n",
+  "clientScript": "def left(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   for obj in wheels:\n      obj.rotV = obj.rotV - 0.005\n   waiting[self] = time\n   self.colour = [217,0,0]\n\ndef right(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   for obj in wheels:\n      obj.rotV = obj.rotV + 0.005\n   waiting[self] = time\n   self.colour = [217,0,0]\n\ndef thrustUp(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n\n   rot = spaceship[0].rot - math.pi / 2\n   vec = math.cos(rot), math.sin(rot)\n\n   power = 0.11 if spaceship[0].pos[1] > -150 else 0.02\n   \n   vec = vec[0]*power, vec[1]*power\n   for obj in spaceship:\n      obj.vel = obj.vel[0] + vec[0], obj.vel[1] + vec[1]\n\ndef thrustLeft(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n   for obj in spaceship:\n      obj.rotV -= 0.005\n\ndef thrustRight(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n   for obj in spaceship:\n      obj.rotV += 0.005\n\ndef load():\n   global waiting, spaceship, wheels, balance, balance2, ninja, swings, swingEnergy\n   waiting = {}\n   \n   spaceship = []\n   wheels = []\n   balance = []\n   balance2 = []\n   ninja = None\n   swings = []\n   swingEnergy = 0.3*50\n\ndef add_object(obj):\n   global ninja\n   if not isinstance(obj, Object):\n      return\n   if 'Spaceship' in obj.groups:\n      spaceship.append(obj)\n   if 'Wheels' in obj.groups:\n      wheels.append(obj)\n   if 'Balance' in obj.groups:\n      balance.append(obj)\n   if 'Balance2' in obj.groups:\n      balance2.append(obj)\n   if 'Ninja' in obj.groups:\n      ninja = obj\n   if 'Swings' in obj.groups:\n      swings.append(obj)\n\ndef tick():\n   for obj, t in waiting.copy().items():\n      if t + 3 < time:\n          del waiting[obj]\n          obj.colour = obj.initialState['colour']\n   \n   for obj in balance:\n      obj.rotV *= 0.98\n      obj.rotV -= obj.rot*0.003\n   \n   for obj in balance2:\n      obj.rotV *= 0.995\n      diff = (obj.rot + math.pi/2) % (math.pi) - math.pi/2\n      obj.rotV -= diff*0.0015\n\n   if ninja is not None:\n      if ninja.pos[0] < 400:\n         ninja.rotV += 0.005\n      elif ninja.pos[0] > 850:\n         ninja.rotV -= 0.005\n      else:\n         ninja.rotV *= 0.1 / abs(ninja.rotV)\n\n   if len(spaceship) != 0:\n      power = 0.25 if spaceship[0].pos[1] > -250 else 0.05\n      rot = spaceship[0].rot - math.pi/2\n      vec = math.cos(rot)*power, math.sin(rot)*power\n      for obj in spaceship:\n         obj.rotV = (obj.rotV - obj.rot*0.01) * 0.95\n         obj.vel = (obj.vel[0]+vec[0])*0.99, (obj.vel[1]+vec[1])*0.99\n   \n   if len(swings) != 0:\n      lowestHeight = -475\n      avg = sum(math.sqrt(obj.vel[0]**2+obj.vel[1]**2) for obj in swings) / len(swings)\n      for obj in swings:\n         potential = min(-0.3*(obj.pos[1]-lowestHeight), swingEnergy)\n         targetVel = math.sqrt(2*(swingEnergy-potential))/2 + avg/2\n\n         vec = obj.vel \n         vel = math.sqrt(obj.vel[0]**2 + obj.vel[1]**2)\n         \n         factor = (49/50 + targetVel/vel * 1/50)\n         obj.vel = vec[0] * factor, vec[1] * factor\n\n\n\n\n",
+  "objects": [
+    {
+      "colour": [56, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Checkpoint1"],
+      "type": "circle",
+      "radius": 18,
+      "pos": [-150, -250],
+      "physics": {"density": 0.2},
+      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+    },
+    {
+      "colour": [217, 212, 0],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "circle",
+      "radius": 10,
+      "pos": [0, -250]
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-308, 83], [-308, 96], [-261, 96], [-261, 83]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-355, 83], [-355, 96], [-308, 96], [-308, 83]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-402, 83], [-402, 96], [-355, 96], [-355, 83]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-449, 83], [-449, 96], [-402, 96], [-402, 83]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-496, 83], [-496, 96], [-449, 96], [-449, 83]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[-496, 38], [-1030, 38], [-1030, 60], [-496, 60]],
+      "type": "polygon",
+      "animated": {"period": 500, "xOffset": -110, "yOffset": 0, "tOffset": 0}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-221, 89], [-208, 89], [-208, 42], [-221, 42]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-502, 89], [-489, 89], [-489, 42], [-502, 42]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [156, 65, 140],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Car", "Wheels"],
+      "type": "circle",
+      "radius": 29,
+      "pos": [81, 9],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [156, 65, 140],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Car", "Wheels"],
+      "type": "circle",
+      "radius": 29,
+      "pos": [182, 9],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [89, 180, 41],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Car"],
+      "type": "polygon",
+      "points": [[71.0, 0.0], [71.0, 20.0], [190.0, 20.0], [190.0, 0.0]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [89, 180, 41],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Car"],
+      "type": "polygon",
+      "points": [[71, -33], [71.0, -23.0], [190.0, -23.0], [190, -33]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [89, 180, 41],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Car"],
+      "type": "polygon",
+      "points": [[110, -28], [110, 4], [120, 4], [120, -28]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [89, 180, 41],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Car"],
+      "type": "polygon",
+      "points": [[141, -28], [141, 4], [151, 4], [151, -28]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [217, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Car"],
+      "type": "polygon",
+      "points": [[71, -40], [71, -33], [80, -33], [80, -40]],
+      "physics": {"density": 0.2},
+      "trigger": "left"
+    },
+    {
+      "colour": [217, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Car"],
+      "type": "polygon",
+      "points": [[181, -40], [181, -33], [190, -33], [190, -40]],
+      "physics": {"density": 0.2},
+      "trigger": "right"
+    },
+    {
+      "colour": [188, 33, 44],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[308, 38], [302, 54], [540, 140], [546, 123]]
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[309, 38], [-215, 38], [-215, 60], [309, 60]],
+      "type": "polygon"
+    },
+    {
+      "colour": [188, 33, 44],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[464, 282], [464, 300], [607, 300], [607, 282]]
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[301, 255], [301, 278], [311, 278], [311, 255]],
+      "type": "polygon"
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[464, 290], [311, 290], [311, 300], [464, 300]],
+      "type": "polygon"
+    },
+    {
+      "colour": [188, 162, 60],
+      "friction": 0.3,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": ["Tower"],
+      "type": "polygon",
+      "points": [[-242, 174], [-242, 148], [-271, 148], [-271, 174]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [188, 162, 60],
+      "friction": 0.3,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": ["Tower"],
+      "type": "polygon",
+      "points": [[-213, 174], [-213, 148], [-242, 148], [-242, 174]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [188, 162, 60],
+      "friction": 0.3,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": ["Tower"],
+      "type": "polygon",
+      "points": [[-213, 278], [-213, 252], [-242, 252], [-242, 278]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [188, 162, 60],
+      "friction": 0.3,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": ["Tower"],
+      "type": "polygon",
+      "points": [[-213, 252], [-213, 226], [-242, 226], [-242, 252]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [188, 162, 60],
+      "friction": 0.3,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": ["Tower"],
+      "type": "polygon",
+      "points": [[-213, 226], [-213, 200], [-242, 200], [-242, 226]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [188, 162, 60],
+      "friction": 0.3,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": ["Tower"],
+      "type": "polygon",
+      "points": [[-213, 200], [-213, 174], [-242, 174], [-242, 200]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [188, 162, 60],
+      "friction": 0.3,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": ["Tower"],
+      "type": "polygon",
+      "points": [[-242, 200], [-242, 174], [-271, 174], [-271, 200]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [188, 162, 60],
+      "friction": 0.3,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": ["Tower"],
+      "type": "polygon",
+      "points": [[-242, 226], [-242, 200], [-271, 200], [-271, 226]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [188, 162, 60],
+      "friction": 0.3,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": ["Tower"],
+      "type": "polygon",
+      "points": [[-242, 252], [-242, 226], [-271, 226], [-271, 252]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [188, 162, 60],
+      "friction": 0.3,
+      "restitution": 0.3,
+      "lethal": false,
+      "groups": ["Tower"],
+      "type": "polygon",
+      "points": [[-242, 278], [-242, 252], [-271, 252], [-271, 278]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [188, 33, 44],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[606, 282], [600, 298], [838, 384], [844, 367]]
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[279, 418], [132, 418], [132, 440], [279, 440]],
+      "type": "polygon"
+    },
+    {
+      "colour": [56, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[148, 300], [148, 316], [164, 316], [164, 300]],
+      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-261, 83], [-261, 96], [-214, 96], [-214, 83]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [188, 33, 44],
+      "friction": 0.1,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[669, 581], [688, 587], [703, 537], [685, 532]]
+    },
+    {
+      "colour": [217, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "trigger": "hideBeam",
+      "points": [[-87, 937], [-87, 931], [-49, 931], [-49, 937]]
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.0,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[126, 637], [-72, 637], [-72, 659], [126, 659]],
+      "type": "polygon"
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[161, 937], [-110, 937], [-110, 959], [161, 959]],
+      "type": "polygon"
+    },
+    {
+      "colour": [56, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[48, 847], [48, 863], [64, 863], [64, 847]],
+      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+    },
+    {
+      "colour": [188, 32, 44],
+      "friction": 0.1,
+      "restitution": 0.0,
+      "lethal": true,
+      "groups": [],
+      "points": [[-110, 937], [-1106, 937], [-1106, 959], [-110, 959]],
+      "type": "polygon"
+    },
+    {
+      "colour": [56, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Checkpoint3"],
+      "type": "polygon",
+      "points": [[-1194, 847], [-1194, 863], [-1178, 863], [-1178, 847]],
+      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[-1106, 937], [-1416, 937], [-1416, 959], [-1106, 959]],
+      "type": "polygon"
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[-737, 278], [-1020, 278], [-1020, 300], [-737, 300]],
+      "type": "polygon"
+    },
+    {
+      "colour": [56, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-822, 183], [-822, 199], [-806, 199], [-806, 183]],
+      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+    },
+    {
+      "colour": [76, 83, 187],
+      "friction": 0.0,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": ["Beam"],
+      "points": [[-72, 638], [-1106, 638], [-1106, 660], [-72, 660]],
+      "type": "polygon"
+    },
+    {
+      "colour": [188, 32, 43],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-1416, 937], [-1416, 959], [-1737, 959], [-1737, 937]]
+    },
+    {
+      "colour": [188, 32, 44],
+      "friction": 0.1,
+      "restitution": 0.0,
+      "lethal": true,
+      "groups": [],
+      "points": [[-213, 278], [-737, 278], [-737, 300], [-213, 300]],
+      "type": "polygon"
+    },
+    {
+      "colour": [217, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": ["Spaceship"],
+      "trigger": "thrustRight",
+      "type": "polygon",
+      "points": [[-1270, 906], [-1270, 925], [-1276, 925], [-1276, 906]],
+      "physics": {"density": 1.0}
+    },
+    {
+      "colour": [247, 106, 22],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": ["Spaceship"],
+      "type": "polygon",
+      "points": [[-1255, 906], [-1270, 906], [-1270, 925], [-1393, 925], [-1393, 906], [-1408, 906], [-1408, 937], [-1255, 937]],
+      "physics": {"density": 1.0}
+    },
+    {
+      "colour": [217, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": ["Spaceship"],
+      "trigger": "thrustLeft",
+      "type": "polygon",
+      "points": [[-1387, 906], [-1387, 925], [-1393, 925], [-1393, 906]],
+      "physics": {"density": 1.0}
+    },
+    {
+      "colour": [217, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": ["Spaceship"],
+      "trigger": "thrustUp",
+      "type": "polygon",
+      "points": [[-1310, 927], [-1310, 922], [-1355, 922], [-1355, 927]],
+      "physics": {"density": 1.0}
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.7,
+      "lethal": false,
+      "groups": [],
+      "points": [[-787, -221], [-2123, -221], [-2123, -199], [-787, -199]],
+      "type": "polygon"
+    },
+    {
+      "colour": [188, 32, 43],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-1737, 959], [-1737, -199], [-1762, -199], [-1762, 959]]
+    },
+    {
+      "colour": [188, 32, 43],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-2098, -221], [-2098, -732], [-2123, -732], [-2123, -221]]
+    },
+    {
+      "colour": [120, 0, 187],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-2044, -224], [-2044, -211], [-1971, -211], [-1971, -224]],
+      "trigger": "launch"
+    },
+    {
+      "colour": [217, 212, 0],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Pivots"],
+      "type": "circle",
+      "radius": 7,
+      "pos": [-1880, -750]
+    },
+    {
+      "colour": [217, 212, 0],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Pivots"],
+      "type": "circle",
+      "radius": 7,
+      "pos": [-1730, -750]
+    },
+    {
+      "colour": [247, 106, 22],
+      "friction": 0.7,
+      "restitution": 0,
+      "lethal": false,
+      "groups": ["Swings"],
+      "type": "polygon",
+      "points": [[-1900, -480], [-1900, -470], [-1710, -470], [-1710, -480]],
+      "physics": {"density": 0.5}
+    },
+    {
+      "colour": [217, 212, 0],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Pivots"],
+      "type": "circle",
+      "radius": 7,
+      "pos": [-1180, -750]
+    },
+    {
+      "colour": [217, 212, 0],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Pivots"],
+      "type": "circle",
+      "radius": 7,
+      "pos": [-1030, -750]
+    },
+    {
+      "colour": [247, 106, 22],
+      "friction": 0.7,
+      "restitution": 0,
+      "lethal": false,
+      "groups": ["Swings"],
+      "type": "polygon",
+      "points": [[-1200, -480], [-1200, -470], [-1010, -470], [-1010, -480]],
+      "physics": {"density": 0.5}
+    },
+    {
+      "colour": [56, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-550, -580], [-550, -564], [-534, -564], [-534, -580]],
+      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+    },
+    {
+      "colour": [188, 33, 44],
+      "friction": 0.1,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[277, 478], [271, 494], [1098, 772], [1103, 756]]
+    },
+    {
+      "colour": [188, 32, 44],
+      "friction": 0.1,
+      "restitution": 0.0,
+      "lethal": true,
+      "groups": [],
+      "points": [[320, 558], [-1474, 558], [-1474, 580], [320, 580]],
+      "type": "polygon"
+    },
+    {
+      "colour": [80, 216, 40],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-445, -519], [-445, -492], [-432, -492], [-432, -519]]
+    },
+    {
+      "colour": [188, 32, 43],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[55, -501], [76, -498], [87, -579], [66, -582]]
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[-234, -492], [-637, -492], [-637, -470], [-234, -470]],
+      "type": "polygon"
+    },
+    {
+      "colour": [188, 32, 43],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[710, -391], [731, -388], [742, -469], [721, -472]]
+    },
+    {
+      "colour": [156, 65, 140],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Cart"],
+      "type": "circle",
+      "radius": 29,
+      "pos": [-401, -620],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [156, 65, 140],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Cart"],
+      "type": "circle",
+      "radius": 29,
+      "pos": [-241, -620],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [89, 180, 41],
+      "friction": 0.5,
+      "restitution": 0.1,
+      "lethal": false,
+      "groups": ["Cart"],
+      "type": "polygon",
+      "points": [[-409, -643], [-409, -610], [-234, -610], [-234, -643]],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [171, 228, 228],
+      "friction": 0.01,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[2956, -65], [2024, 31], [2027, 52], [2959, -44]],
+      "type": "polygon"
+    },
+    {
+      "colour": [171, 228, 228],
+      "friction": 0.01,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[2955, -206], [2955, -43], [2977, -43], [2977, -206]],
+      "type": "polygon"
+    },
+    {
+      "colour": [188, 32, 43],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[2345, -224], [2366, -222], [2374, -303], [2353, -305]],
+      "animated": {"period": 100, "xOffset": 10, "yOffset": -99, "tOffset": 0}
+    },
+    {
+      "colour": [188, 32, 43],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[2567, -200], [2588, -198], [2596, -279], [2575, -281]],
+      "animated": {"period": 100, "xOffset": 10, "yOffset": -99, "tOffset": 0}
+    },
+    {
+      "colour": [188, 32, 43],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[2126, -247], [2147, -245], [2155, -326], [2134, -328]],
+      "animated": {"period": 100, "xOffset": 10, "yOffset": -99, "tOffset": 0}
+    },
+    {
+      "colour": [188, 32, 43],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[2098, 23], [2119, 22], [2110, -59], [2089, -58]],
+      "animated": {"period": 100, "xOffset": -10, "yOffset": -99, "tOffset": 50}
+    },
+    {
+      "colour": [56, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1686, -428], [1686, -412], [1702, -412], [1702, -428]],
+      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+    },
+    {
+      "colour": [56, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1777, -71], [1777, -55], [1793, -55], [1793, -71]],
+      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+    },
+    {
+      "colour": [171, 229, 229],
+      "friction": 0.01,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[2029, 30], [1626, 30], [1626, 52], [2029, 52]],
+      "type": "polygon"
+    },
+    {
+      "colour": [56, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-1890, -309], [-1890, -293], [-1874, -293], [-1874, -309]],
+      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+    },
+    {
+      "colour": [56, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-940, -309], [-940, -293], [-924, -293], [-924, -309]],
+      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+    },
+    {
+      "colour": [188, 32, 43],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[2521, -20], [2542, -21], [2533, -102], [2512, -101]],
+      "animated": {"period": 100, "xOffset": -10, "yOffset": -99, "tOffset": 50}
+    },
+    {
+      "colour": [188, 32, 43],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[2304, 2], [2325, 1], [2316, -80], [2295, -79]],
+      "animated": {"period": 100, "xOffset": -10, "yOffset": -99, "tOffset": 50}
+    },
+    {
+      "colour": [171, 228, 228],
+      "friction": 0.01,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[2866, -169], [1934, -267], [1932, -246], [2864, -148]],
+      "type": "polygon"
+    },
+    {
+      "colour": [171, 228, 228],
+      "friction": 0.01,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[1988, -468], [1988, -305], [2010, -305], [2010, -468]],
+      "type": "polygon"
+    },
+    {
+      "colour": [171, 228, 228],
+      "friction": 0.01,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[1916, -305], [1916, -245], [1938, -245], [1938, -305]],
+      "type": "polygon"
+    },
+    {
+      "colour": [188, 33, 44],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1083, 367], [1092, 383], [1311, 256], [1302, 240]]
+    },
+    {
+      "colour": [56, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1162, 847], [1162, 863], [1178, 863], [1178, 847]],
+      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[1293, 937], [1162, 937], [1162, 959], [1293, 959]],
+      "type": "polygon"
+    },
+    {
+      "colour": [188, 33, 44],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1293, 959], [1311, 959], [1311, -195], [1293, -195]]
+    },
+    {
+      "colour": [247, 106, 22],
+      "friction": 0.8,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Balance"],
+      "type": "polygon",
+      "points": [[-671, 418], [-671, 441], [-415, 441], [-415, 418]],
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [247, 106, 22],
+      "friction": 0.8,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Balance"],
+      "type": "polygon",
+      "points": [[-1073, 418], [-1073, 441], [-817, 441], [-817, 418]],
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [247, 106, 22],
+      "friction": 0.8,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Balance"],
+      "type": "polygon",
+      "points": [[-271, 418], [-271, 441], [-15, 441], [-15, 418]],
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [247, 106, 22],
+      "friction": 0.8,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Balance2"],
+      "type": "polygon",
+      "points": [[1340, 385], [1340, 408], [1596, 408], [1596, 385]],
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [247, 106, 22],
+      "friction": 0.8,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Balance2"],
+      "type": "polygon",
+      "points": [[1340, 235], [1340, 258], [1596, 258], [1596, 235]],
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [247, 106, 22],
+      "friction": 0.8,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Balance2"],
+      "type": "polygon",
+      "points": [[1340, 85], [1340, 108], [1596, 108], [1596, 85]],
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [247, 106, 22],
+      "friction": 0.8,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Balance2"],
+      "type": "polygon",
+      "points": [[1340, 685], [1340, 708], [1596, 708], [1596, 685]],
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [247, 106, 22],
+      "friction": 0.8,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Balance2"],
+      "type": "polygon",
+      "points": [[1340, 535], [1340, 558], [1596, 558], [1596, 535]],
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [188, 32, 44],
+      "friction": 0.1,
+      "restitution": 0.0,
+      "lethal": true,
+      "groups": [],
+      "points": [[1530, -169], [-234, -492], [-238, -470], [1526, -147]],
+      "type": "polygon"
+    },
+    {
+      "colour": [188, 33, 44],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[838, 365], [838, 383], [1091, 383], [1091, 365]]
+    },
+    {
+      "colour": [247, 106, 22],
+      "friction": 0.8,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Balance2"],
+      "type": "polygon",
+      "points": [[1340, 835], [1340, 858], [1596, 858], [1596, 835]],
+      "physics": {"density": 0.1}
+    },
+    {
+      "colour": [56, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Checkpoint2"],
+      "type": "polygon",
+      "points": [[148, 183], [148, 199], [164, 199], [164, 183]],
+      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[311, 278], [-213, 278], [-213, 300], [311, 300]],
+      "type": "polygon"
+    },
+    {
+      "colour": [56, 217, 217],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": ["Checkpoint2"],
+      "type": "polygon",
+      "points": [[1726, 842], [1726, 858], [1742, 858], [1742, 842]],
+      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+    },
+    {
+      "colour": [188, 33, 44],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1626, 780], [1644, 780], [1644, 52], [1626, 52]]
+    },
+    {
+      "colour": [188, 33, 44],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1311, 941], [1311, 959], [1644, 959], [1644, 941]]
+    },
+    {
+      "colour": [80, 217, 41],
+      "friction": 0.5,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[2168, 937], [1644, 937], [1644, 959], [2168, 959]],
+      "type": "polygon"
+    },
+    {
+      "colour": [188, 32, 43],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1522, -246], [1543, -243], [1552, -309], [1531, -312]]
+    },
+    {
+      "colour": [171, 229, 229],
+      "friction": 0.01,
+      "restitution": 0.0,
+      "lethal": false,
+      "groups": [],
+      "points": [[1938, -327], [1530, -327], [1530, -305], [1938, -305]],
+      "type": "polygon"
+    },
+    {
+      "colour": [188, 32, 43],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": true,
+      "groups": ["Ninja"],
+      "type": "circle",
+      "radius": 35,
+      "pos": [893, 904],
+      "physics": {"density": 0.2}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[777, 937], [777, 950], [854, 950], [854, 937]],
+      "physics": {"density": 0.8}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[623, 937], [623, 950], [700, 950], [700, 937]],
+      "physics": {"density": 0.8}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[700, 937], [700, 950], [777, 950], [777, 937]],
+      "physics": {"density": 0.8}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[469, 937], [469, 950], [546, 950], [546, 937]],
+      "physics": {"density": 0.8}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[546, 937], [546, 950], [623, 950], [623, 937]],
+      "physics": {"density": 0.8}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[315, 937], [315, 950], [392, 950], [392, 937]],
+      "physics": {"density": 0.8}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[392, 937], [392, 950], [469, 950], [469, 937]],
+      "physics": {"density": 0.8}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[238, 937], [238, 950], [315, 950], [315, 937]],
+      "physics": {"density": 0.8}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[161, 937], [161, 950], [238, 950], [238, 937]],
+      "physics": {"density": 0.8}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[854, 937], [854, 950], [931, 950], [931, 937]],
+      "physics": {"density": 0.8}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[931, 937], [931, 950], [1008, 950], [1008, 937]],
+      "physics": {"density": 0.8}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1008, 937], [1008, 950], [1085, 950], [1085, 937]],
+      "physics": {"density": 0.8}
+    },
+    {
+      "colour": [131, 80, 46],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1085, 937], [1085, 950], [1162, 950], [1162, 937]],
+      "physics": {"density": 0.8}
+    }
+  ]
+}

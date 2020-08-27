@@ -1,0 +1,37 @@
+{
+   "players": [
+      {
+         "active": true,
+         "name": "Player 1",
+         "colour": [
+            255,
+            0,
+            0
+         ],
+         "controls": [
+            "d",
+            "a",
+            "s",
+            "w"
+         ]
+      },
+      {
+         "active": false,
+         "name": "Player 2",
+         "colour": [
+            0,
+            255,
+            0
+         ],
+         "controls": [
+            "RIGHT",
+            "LEFT",
+            "DOWN",
+            "UP"
+         ]
+      }
+   ],
+   "multisampling": 16,
+   "reset_button": "r",
+   "fancy": true
+}

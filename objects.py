@@ -524,19 +524,18 @@ class OtherPlayer(BasePlayer):
         super().__init__(world, colour, name)
         self.texture = None
 
-    def createDisplayList(self):
-        super().createDisplayList()
+    def initialise_texture(self):
         if OtherPlayer.font is None:
             OtherPlayer.font = pygame.font.SysFont(None, 25)
         surface = OtherPlayer.font.render(self.name, True, (255,0,0), (0,0,0))
 
         if self.texture is None:
             self.texture = int(glGenTextures(1)) # sometimes retures np.uintc
-        self.texSize = surface.get_size()
+        self.texture_size = surface.get_size()
 
-        arr = np.zeros((*self.texSize[::-1],4), np.ubyte) + 50
-        arr[:,:,3] = [[surface.get_at((x,y))[0] for x in range(self.texSize[0])] for y in range(self.texSize[1])]
-        #arr = (np.random.random((*self.texSize[::-1], 4)) * 256).astype(np.ubyte)
+        arr = np.zeros((*self.texture_size[::-1],4), np.ubyte) + 0xff
+        arr[:,:,3] = [[surface.get_at((x,y))[0] for x in range(self.texture_size[0])] for y in range(self.texture_size[1])]
+        #arr = (np.random.random((*self.texture_size[::-1], 4)) * 256).astype(np.ubyte)
 
         glBindTexture(GL_TEXTURE_2D, self.texture)
 
@@ -545,7 +544,15 @@ class OtherPlayer(BasePlayer):
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, *self.texSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, arr)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, *self.texture_size, 0, GL_RGBA, GL_UNSIGNED_BYTE, arr)
+
+    def create_fancy_displaylist(self):
+        super().create_fancy_displaylist()
+        self.initialise_texture()
+
+    def create_displaylist(self):
+        super().create_displaylist()
+        self.initialise_texture()
 
     def cleanup(self):
         super().cleanup()
@@ -556,15 +563,15 @@ class OtherPlayer(BasePlayer):
     def getAction(self):
         return self.action
 
-    def render(self, render):
-        super().render(render)
-
+    def render_texture(self, fancy):
         glPushMatrix()
 
-        glTranslatef(self.pos[0]-self.texSize[0]/2, self.pos[1]-self.texSize[1]/2 - 25,0)
-        glScale(*self.texSize, 0)
+        if fancy:
+            glDepthFunc(GL_ALWAYS)
 
-        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE)
+        glTranslatef(self.pos[0]-self.texture_size[0]/2, self.pos[1]-self.texture_size[1]/2 - 25,0)
+        glScale(*self.texture_size, 0)
+
         glBindTexture(GL_TEXTURE_2D, self.texture)
 
         glEnable(GL_TEXTURE_2D)
@@ -572,7 +579,11 @@ class OtherPlayer(BasePlayer):
         glEnable(GL_BLEND) # Dunno why initial call in main.py doesn't work
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-        glColor4f(1,1,1,1)
+        colour = [0.3] * 3
+        if fancy:
+            colour = util.convertToLinear(colour)
+        glColor3fv(colour)
+
         glBegin(GL_TRIANGLE_FAN)
         glTexCoord2f(0, 0)
         glVertex2f(0,0)
@@ -586,7 +597,19 @@ class OtherPlayer(BasePlayer):
 
         glDisable(GL_TEXTURE_2D)
 
+        if fancy:
+            glDepthFunc(GL_LEQUAL) # Restore
+
         glPopMatrix()
+
+    def render(self, camera):
+        super().render(camera)
+        self.render_texture(False)
+
+    def render_fancy(self, camera):
+        super().render_fancy(camera)
+        self.render_texture(True)
+        
 
 class Player(BasePlayer):
     def __init__(self, world, colour, name, controls):

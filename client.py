@@ -1,4 +1,4 @@
-import struct, socket, json, math,  time
+import struct, socket, json, math, time, queue
 import numpy as np
 
 import physics.physics as physics
@@ -29,11 +29,25 @@ class Client:
 
         self.data = [] # Random debugging data stuff
 
+        self.packet_queue = queue.Queue()
+        self.disconnect_message = None
+
         self.connection = connection
+        self.connection.start(self.handle_packet)
 
     def update(self):
+        self.connection.update()
+
+        if self.disconnect_message is not None:
+            raise RuntimeError('Disconnected from server "{}"'.format(self.disconnect_message))
+
         received = []
-        for packet in self.connection.poll():
+        while True:
+            try:
+                packet = self.packet_queue.get_nowait()
+            except:
+                break
+            
             if hasattr(packet, 'tick'):
                 if packet.tick < self.world.tick:
                     if packet.type != networking.NORMAL:
@@ -82,13 +96,16 @@ class Client:
         self.drawer.update()
         #self.data.append([time.time(), self.world.tick, self.lastLoad, self.sentTick, self.drawer.world.tick, self.drawer.targetTick])
 
+    def handle_packet(self, packet):
+        self.packet_queue.put(packet)
+
     def render(self):
         self.drawer.render()
 
     def cleanup(self):
         self.drawer.cleanup()
 
-        self.connection.socket.close()
+        self.connection.stop()
 
         with open('data.json', 'w') as f:
             json.dump(self.data, f)

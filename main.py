@@ -201,7 +201,7 @@ def run(levelname=None, port=None, address=None):
     if multiplayer:
         for timeout in (3, 5, 5):
             try:
-                connection = networking.make_client_connection(address, port, packets.PROTOCOL, timeout, packets.InitConnectionPacketServer(players))
+                connection = networking.make_client_connection(address, port, packets.PROTOCOL, timeout, packets.InitConnectionPacketServer(players), True)
                 break
             except Exception as e:
                 print('Failed to connect to {}:{} because {}'.format(address, port, e))
@@ -258,7 +258,7 @@ def run(levelname=None, port=None, address=None):
                         elif event.key == K_t:
                             updater.update()'''
             if multiplayer:
-                pygame.display.set_caption('Platformer: {:.2f} {:.2f}ms'.format(clock.get_fps(), updater.connection.rtt*1000))
+                pygame.display.set_caption('Platformer: {:.2f} {:.2f}±{:.2f}ms'.format(clock.get_fps(), updater.connection.rtt*1000, updater.connection.rtt_dev*1000))
             else:
                 pygame.display.set_caption('Platformer: {:.2f}'.format(clock.get_fps()))
             profiler('Updating')
@@ -333,7 +333,7 @@ def runServer(levelname, port):
 
     clock = [pygame.time.Clock, Clock][sys.platform.startswith('linux')]()
 
-    stopped = False
+    did_crash = True
     try:
         while True:
             if commands:
@@ -342,7 +342,7 @@ def runServer(levelname, port):
                 except queue.Empty:
                     pass
                 else:
-                    line = line.rstrip()
+                    line = line.strip()
 
                     contents = line.split()
                     if line == 'r':
@@ -370,21 +370,23 @@ def runServer(levelname, port):
                             print('Pausing Server')
                         server.paused = not server.paused
                     elif line == 's':
-                        for connection, players in server.connections.items():
-                            print(', '.join(player.name for player in players) + ': ping={:.2f}ms loss={:.1f}%'.format(connection.rtt*1000, connection.packet_loss*100))
+                        if len(server.connections) != 0:   
+                            for connection, players in server.connections.items():
+                                print(', '.join(player.name for player in players) + ': ping={:.2f}±{:.2f}ms loss={:.1f}%'.format(connection.rtt*1000, connection.rtt_dev*1000, connection.packet_loss*100))
+                        else:
+                            print('No players')
                     else:
                         print('Invalid command')
             server.update()
             #clock.tick()
             clock.tick(60)
-
-        stopped = True
-        print('Stopping server')
-        server.stop('Server stopped')
+        did_crash = False
     finally:
-        if not stopped:
+        if did_crash:
             server.stop('Server crashed')
-
+        else:
+            print('Stopping server')
+            server.stop('Server stopped')
 
 if __name__ == '__main__':
     mode = sys.argv[1]

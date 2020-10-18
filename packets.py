@@ -525,7 +525,7 @@ class DisconnectPacket:
         self.reason = buf.decode('utf-8')
 
     def handleClient(self, client):
-        raise RuntimeError('Disconnected from server "{}"'.format(self.reason))
+        client.disconnect_message = self.reason
 
     def handleServer(self, server, connection):
         if connection not in server.connections:

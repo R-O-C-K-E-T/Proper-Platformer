@@ -1,4 +1,4 @@
-import struct, math, time, pickle
+import struct, math, time, pickle, threading
 import numpy as np
 
 import physics.physics as physics
@@ -87,8 +87,9 @@ class Server:
 
         self.curID = 0
 
-        self.connection_handler = networking.ServerConnectionHandler('', port, packets.PROTOCOL)
+        self.connection_handler = networking.ThreadedServerConnectionHandler('', port, packets.PROTOCOL)
         self.connection_handler.new_connection = self.new_connection
+        self.connection_handler.start(self.handle_packet)
 
         self.paused = False
 
@@ -152,21 +153,23 @@ class Server:
             return newObjects
         self.world.copyObjects = copyObjects
 
+    def handle_packet(self, connection, packet):
+        packet.handleServer(self, connection)
+
     def update(self):
-        for connection, recv_packets in self.connection_handler.poll().items():
-            for packet in recv_packets:
-                packet.handleServer(self, connection)
+        self.connection_handler.update()
 
-        t = time.time()
-        for connection in list(self.connections):
-            if connection.last_received + 3 < t:
-                self.kick(connection, 'Timed out')
+        with self.connection_handler.lock:
+            t = time.time()
+            for connection in list(self.connections):
+                if connection.last_received + 3 < t:
+                    self.kick(connection, 'Timed out')
 
-        actions = self.actions.pop(self.world.tick, {})
-        actions = dict((ID, action) for ID, action in actions.items() if ID in self.playerIDs)
+            actions = self.actions.pop(self.world.tick, {})
+            actions = dict((ID, action) for ID, action in actions.items() if ID in self.playerIDs)
 
-        for ID, action in actions.items():
-            self.playerIDs[ID].action = action
+            for ID, action in actions.items():
+                self.playerIDs[ID].action = action
 
         if not self.paused:
             self.world.update()
@@ -188,7 +191,10 @@ class Server:
             self.sendall(packets.UpdateObjectsPacketClient(self.world.tick, updating_objects[i:i+20]))
 
         for ID, action in actions.items():
-            player = self.playerIDs[ID]
+            try:
+                player = self.playerIDs[ID]
+            except KeyError:
+                continue
             for connection, _ in self.connections.items():
                 connection.send(packets.PlayerStatePacketClient(self.world.tick, ID, player))
 
@@ -237,7 +243,7 @@ class Server:
 
     def stop(self, reason):
         self.connection_handler.sendall(packets.DisconnectPacket(reason))
-        self.connection_handler.socket.close()
+        self.connection_handler.stop()
 
     def setWorld(self, world, clientScript):
         for ID in self.world.objects:

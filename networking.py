@@ -1,4 +1,4 @@
-import socket, struct, operator, time, zlib, random, math
+import socket, struct, operator, time, zlib, random, math, threading
 import numpy as np
 
 DEBUG = False
@@ -81,7 +81,7 @@ class SequenceNumber:
     __ne__ = _richcmp(operator.ne)
 
 
-def make_client_connection(host, port, protocol, timeout=3, payload=None):
+def make_client_connection(host, port, protocol, timeout=3, payload=None, threaded=False):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(timeout)
     sock.connect((host, port))
@@ -131,43 +131,22 @@ def make_client_connection(host, port, protocol, timeout=3, payload=None):
 
     time.sleep(rtt*0.5)
 
-    sock.setblocking(False)
-    return Connection(protocol, salt, sock)
+    if threaded:
+        return ThreadedConnection(protocol, salt, sock)
+    else:
+        return Connection(protocol, salt, sock)
 
-class ServerConnectionHandler:
+class BaseServerConnectionHandler:
     def __init__(self, host, port, protocol):
         assert len(protocol) in (2,3)
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind((host, port))
-        sock.setblocking(False)
 
         self.socket = sock
         self.protocol = protocol
 
         self.pending = []
         self.connections = {}
-
-    def poll(self):
-        packets = {}
-        while True:
-            try:
-                data, addr = self.socket.recvfrom(MTU)
-            except BlockingIOError:
-                break
-
-            if addr in self.connections:
-                connection = self.connections[addr]
-                packet = connection.receive(data)
-                if packet is not None:
-                    packets.setdefault(connection, []).append(packet)
-            else:
-                self.handle_connection_packet(addr, data)
-
-        for connection in self.connections.values():
-            packets.setdefault(connection, [])
-            packets[connection] += connection.update()
-        return packets
-
 
     def handle_connection_packet(self, addr, data):
         protocol_id = self.protocol[0]
@@ -222,8 +201,7 @@ class ServerConnectionHandler:
                 payload = receiving_types[packet_id-1]()
                 payload.read(data[17:])
 
-            connection = Connection(self.protocol, salt, self.socket, addr)
-            connection.poll = None
+            connection = BaseConnection(self.protocol, salt, self.socket, addr)
 
             self.connections[addr] = connection
             self.new_connection(connection, payload)
@@ -251,6 +229,77 @@ class ServerConnectionHandler:
     def new_connection(self, connection, payload):
         pass
 
+class ServerConnectionHandler(BaseServerConnectionHandler):
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.socket.setblocking(False)
+
+    def poll(self):
+        packets = {}
+        while True:
+            try:
+                data, addr = self.socket.recvfrom(MTU)
+            except BlockingIOError:
+                break
+
+            if addr in self.connections:
+                connection = self.connections[addr]
+                packet = connection.receive(data)
+                if packet is not None:
+                    packets.setdefault(connection, []).append(packet)
+            else:
+                self.handle_connection_packet(addr, data)
+
+        for connection in self.connections.values():
+            packets.setdefault(connection, [])
+            packets[connection] += connection.update()
+        return packets
+
+class ThreadedServerConnectionHandler(BaseServerConnectionHandler):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+        self.lock = threading.RLock()
+        
+        self._is_stopped = False
+        self.thread = threading.Thread(name='Server Network Thread', target=self._run_thread)
+        self.socket.setblocking(True)
+
+    def _run_thread(self):
+        while True:
+            data, addr = self.socket.recvfrom(MTU)
+            if self._is_stopped:
+                break
+
+            with self.lock:
+                if addr in self.connections:
+                    connection = self.connections[addr]
+                    packets = connection.receive(data)
+                    for packet in packets:
+                        self._packet_handler(connection, packet)
+                else:
+                    self.handle_connection_packet(addr, data)
+
+    def start(self, packet_handler):
+        self._packet_handler = packet_handler
+        self.thread.start()
+
+    def stop(self):
+        self._is_stopped = True
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.sendto(b'', ('localhost', self.socket.getsockname()[1]))
+        self.thread.join()
+
+        self.socket.close()
+
+    def sendall(self, packet):
+        with self.lock:
+            super().sendall(packet)
+
+    def update(self):
+        with self.lock:
+            for connection in self.connections.values():
+                connection.update()
 
 class ChunkSender:
     def __init__(self, chunk_id, packet, conn):
@@ -368,29 +417,31 @@ class PacketCache:
         self.size = size
         self.entries = [(None,None)] * size
 
-    def get(self, sequence_num):
+    def __getitem__(self, sequence_num):
         stored_num, packet_data = self.entries[sequence_num.value % self.size]
         if stored_num == sequence_num:
             return packet_data
         else:
             return None
 
-    def set(self, sequence_num, packet_data):
+    def __setitem__(self, sequence_num, packet_data):
+        assert packet_data is not None
         self.entries[sequence_num.value % self.size] = sequence_num, packet_data
 
-    def clear(self, sequence_num):
-        self.entries[sequence_num.value % self.size] = None, None
+    def __delitem__(self, sequence_num):
+        if sequence_num in self:
+            self.entries[sequence_num.value % self.size] = None, None
 
     def __contains__(self, sequence_num):
         assert isinstance(sequence_num, SequenceNumber)
-        return self.get(sequence_num) is not None
+        return self.entries[sequence_num.value % self.size][0] == sequence_num
 
     def __iter__(self):
         for item in self.entries:
             if item[0] is not None:
                 yield item
 
-class Connection:
+class BaseConnection:
     def __init__(self, protocol, salt, sock, addr=None):
         self.protocol_id = protocol[0]
         if len(protocol) == 2:
@@ -423,16 +474,15 @@ class Connection:
 
         self.chunk_receiver = None
 
-        self.sending_packets = PacketCache(1024)
-        self.received_packets = PacketCache(1024)
+        self.sending_packets = PacketCache(256)
+        self.received_packets = PacketCache(256)
 
-        self.rtt = 1
+        self.rtt = 0
+        self.rtt_dev = 3
 
         self.packet_loss = 0
 
     def send(self, packet):
-        if packet.type not in (NORMAL, RELIABLE, BIG):
-            raise ValueError('Invalid Packet Type')
         type_id = self.sending_types.index(type(packet)) + 1
 
         if self.trace is not None:
@@ -443,13 +493,13 @@ class Connection:
             self.chunk_id = (self.chunk_id + 1) % 256
         elif packet.type == RELIABLE:
             data = struct.pack('!BH', type_id, self.latest_sending.value) + packet.write()
-            #self.send_raw(data)
-            self.sending_packets.set(self.latest_sending, (data, None))
-
+            self.sending_packets[self.latest_sending] = data, None
             self.latest_sending = self.latest_sending.increment()
         elif packet.type == NORMAL:
             data = struct.pack('!B', type_id) + packet.write()
             self.send_raw(data)
+        else:
+            raise ValueError('Invalid Packet Type')
 
     def send_raw(self, data): # Adds 8 bytes
         data = apply_crc(self.protocol_id, self.salt + data)
@@ -462,23 +512,69 @@ class Connection:
         else:
             self.socket.sendto(data, self.addr)
 
-    def poll(self): # Used on client only
-        packets = []
-        while True:
-            try:
-                data = self.socket.recv(MTU)
-            except BlockingIOError:
-                break
+    @property
+    def timeout_interval(self):
+        # RFC 2988
+        k = 4
+        g = 0.01 # Good enough
 
-            packet = self.receive(data)
-            if packet is not None:
-                packets.append(packet)
-        packets += self.update()
-        return packets
+        return self.rtt + max(g, k*self.rtt_dev)
+
+    def packet_lost(self):
+        f = 0.05
+        self.packet_loss = self.packet_loss*(1-f) + 1*f
+
+    def packet_received(self):
+        f = 0.05
+        self.packet_loss = self.packet_loss*(1-f) + 0*f
 
     def update_rtt(self, rtt):
-        f = 0.9
-        self.rtt = self.rtt*f + rtt*(1-f)
+        # RFC 2988
+        a = 1/8
+        b = 1/4
+
+        self.rtt_dev = self.rtt_dev*(1-b) + abs(rtt - self.rtt)*b
+        self.rtt = self.rtt*(1-a) + rtt*a
+
+    def _handle_ack_packet(self, packet):
+        size = len(packet)
+        if size == 32 + 1: # Big ACK
+            if self.sending_chunk is None:
+                if DEBUG:
+                    print('Received Big ACK when not sending')
+                return
+            chunk_id = packet[0]
+            if self.sending_chunk.chunk_id != chunk_id:
+                if DEBUG:
+                    print('Received Big ACK for wrong chunk id {}!={}'.format(self.sending_chunk.chunk_id, chunk_id))
+                return
+            if DEBUG:
+                print('Received Big ACK', chunk_id, packet[1:])
+            self.sending_chunk.handle_ack(packet[1:])
+        elif size == 2 + 4: # Reliable ACK
+            initial, = struct.unpack('!H', packet[:2])
+            bitfield = np.unpackbits(np.array(list(packet[2:6]), np.uint8)).tolist()
+
+            self.packet_received()
+
+            if DEBUG:
+                print('Received Reliable ACK packet', initial, bitfield)
+
+            t = time.time()
+            for i, value in enumerate([1] + bitfield):
+                if value:
+                    sequence_num = SequenceNumber(16, initial - i)
+                    res = self.sending_packets[sequence_num]
+                    if res is not None:
+                        dt = t - res[1]
+
+                        self.update_rtt(dt)
+                    del self.sending_packets[sequence_num]
+                    while self.earliest_sending not in self.sending_packets and self.earliest_sending < self.latest_sending:
+                        self.earliest_sending = self.earliest_sending.increment(1)
+        else:
+            if DEBUG:
+                print('Received ACK with invalid size')
 
     def receive(self, data):
         if not check_crc(self.protocol_id, data):
@@ -497,44 +593,8 @@ class Connection:
         packet_type_id = data[8] - 1
         payload = data[9:]
         if packet_type_id == -1: # ACK Packet
-            size = len(payload)
-            if size == 32 + 1: # Big ACK
-                if self.sending_chunk is None:
-                    if DEBUG:
-                        print('Received Big ACK when not sending')
-                    return
-                chunk_id = payload[0]
-                if self.sending_chunk.chunk_id != chunk_id:
-                    if DEBUG:
-                        print('Received Big ACK for wrong chunk id {}!={}'.format(self.sending_chunk.chunk_id, chunk_id))
-                    return
-                if DEBUG:
-                    print('Received Big ACK', chunk_id, payload[1:])
-                self.sending_chunk.handle_ack(payload[1:])
-            elif size == 2 + 4: # Reliable ACK
-                initial, = struct.unpack('!H', payload[:2])
-                bitfield = np.unpackbits(np.array(list(payload[2:6]), np.uint8)).tolist()
-
-                self.packet_loss *= 0.95
-
-                if DEBUG:
-                    print('Received Reliable ACK packet', initial, bitfield)
-
-                t = time.time()
-                for i, value in enumerate([1] + bitfield):
-                    if value:
-                        sequence_num = SequenceNumber(16, initial - i)
-                        res = self.sending_packets.get(sequence_num)
-                        if res is not None:
-                            dt = t - res[1]
-
-                            self.update_rtt(dt)
-                        self.sending_packets.clear(sequence_num)
-                        while self.sending_packets.get(self.earliest_sending) is None and self.earliest_sending < self.latest_sending:
-                            self.earliest_sending = self.earliest_sending.increment(1)
-            else:
-                if DEBUG:
-                    print('Received ACK with invalid size')
+            self._handle_ack_packet(payload)
+            return []
         else:
             packet_type = self.receiving_types[packet_type_id]
 
@@ -544,23 +604,37 @@ class Connection:
             if packet_type.type == NORMAL:
                 packet = packet_type()
                 packet.read(payload)
-            elif packet_type.type == RELIABLE:
+                return [packet]
+
+            if packet_type.type == RELIABLE:
                 sequence_number = SequenceNumber(16, struct.unpack('!H', payload[:2])[0])
-                if self.received_packets.get(sequence_number) is None:
+                if sequence_number not in self.received_packets:
                     reliable = packet_type()
                     reliable.read(payload[2:])
-                    #print('r', reliable.text)
                     if self.latest_received is None:
                         self.latest_received = sequence_number
                     else:
                         self.latest_received = max(self.latest_received, sequence_number)
 
-                    self.received_packets.set(sequence_number, reliable)
-
-                packet = None
+                    self.received_packets[sequence_number] = reliable
 
                 self.send_ack()
-            elif packet_type.type == BIG:
+
+                packets = []
+
+                if self.earliest_unreceived == sequence_number:
+                    seq = self.earliest_unreceived
+                    while seq <= self.latest_received:
+                        packet = self.received_packets[seq]
+                        if packet is None:
+                            break
+                        packets.append(packet)
+                        seq = seq.increment(1)
+                    self.earliest_unreceived = seq
+
+                return packets
+            
+            if packet_type.type == BIG:
                 if self.chunk_receiver is None:
                     self.chunk_receiver = ChunkReceiver(packet_type, self)
                 elif (self.chunk_receiver.chunk_id + 1) % 256 == payload[0]:
@@ -569,43 +643,36 @@ class Connection:
                     self.chunk_receiver = ChunkReceiver(packet_type, self)
 
                 packet = self.chunk_receiver.receive(packet_type, payload)
-            return packet
 
+                if packet is None:
+                    return []
+                else:
+                    return [packet]
+    
     def send_ack(self):
-        if DEBUG:
-            print('Sending ACK')
         latest = self.latest_received
+        if DEBUG:
+            print('Sending ACK:', latest)
+        
         bitfield = np.packbits([latest.increment(-(i+1)) in self.received_packets for i in range(32)])
         self.send_raw(bytes([0]) + struct.pack('!H4B', latest.value, *bitfield))
 
     def update(self):
         t = time.time()
-        resend_time = self.rtt * 1.25
 
         for i in range(32):
             sequence_num = self.earliest_sending.increment(i)
 
-            res = self.sending_packets.get(sequence_num)
+            res = self.sending_packets[sequence_num]
             if res is not None:
                 packet_data, send_time = res
-                if send_time is None or send_time + resend_time < t:
+                if send_time is None or send_time + self.timeout_interval < t:
                     if send_time is not None:
-                        self.packet_loss = self.packet_loss*0.95 + 1*0.05
+                        self.packet_lost()
                         if DEBUG:
                             print('Resending Packet', sequence_num.value)
                     self.send_raw(packet_data)
-                    self.sending_packets.set(sequence_num, (packet_data, t))
-
-        reliable_packets = []
-        if self.latest_received is not None:
-            seq = self.earliest_unreceived
-            while seq <= self.latest_received:
-                packet = self.received_packets.get(seq)
-                if packet is None:
-                    break
-                reliable_packets.append(packet)
-                seq = seq.increment(1)
-            self.earliest_unreceived = seq
+                    self.sending_packets[sequence_num] = packet_data, t
 
         if self.sending_chunk is None:
             if len(self.chunk_queue) != 0:
@@ -622,4 +689,54 @@ class Connection:
             if self.sending_chunk is not None:
                 self.sending_chunk.update()
 
-        return reliable_packets
+class Connection(BaseConnection):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+        self.socket.setblocking(False)
+
+    def poll(self):
+        packets = []
+        while True:
+            try:
+                data = self.socket.recv(MTU)
+            except BlockingIOError:
+                break
+            
+            packets += self.receive(data)
+        return packets
+
+class ThreadedConnection(BaseConnection):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+        self.lock = threading.RLock()
+
+        self._is_stopped = False
+        self.thread = threading.Thread(name='Network Thread', target=self._run_thread)
+        self.socket.setblocking(True)
+
+    def update(self):
+        with self.lock:
+            super().update()    
+
+    def _run_thread(self):
+        while True:
+            data = self.socket.recv(MTU)
+            if self._is_stopped:
+                break
+            
+            with self.lock:
+                for packet in self.receive(data):
+                    self._packet_handler(packet)
+
+    def start(self, packet_handler):
+        self._packet_handler = packet_handler
+        self.thread.start()
+
+    def stop(self):
+        self._is_stopped = True
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.sendto(b'', ('localhost', self.socket.getsockname()[1]))
+        self.thread.join()
+        self.socket.close()

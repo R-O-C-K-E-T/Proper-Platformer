@@ -2,7 +2,7 @@
   "gravity": [0, 0.3],
   "spawn": [0, 0],
   "constraints": [],
-  "serverScript": "def handler(self, other, normal, localA, localB): \n   return other.vel[1] < 0\n\ndef button1(self, other, normal, localA, localB):\n   if self.colour != [100,100,100]:\n      return\n   self.colour = [255,100,100]\n   obj = createObject({'type':'circle', 'groups':[], 'radius':50, 'pos': [-400,-300], 'colour':[50,100,50], 'physics':{'density':0.3}, 'restitution': 0.5, 'friction': 0.5, 'lethal': False})\n   obj.vel = 9, -7\n\ndef load():\n    pass\n\ndef tick():\n    pass\n\n",
+  "server_script": "def handler(self, other, normal, local_a, local_b): \n   return other.vel[1] < 0\n\ndef button1(self, other, normal, local_a, local_b):\n   if self.colour != [100,100,100]:\n      return\n   self.colour = [255,100,100]\n   obj = create_object({'type':'circle', 'groups':[], 'radius':50, 'pos': [-400,-300], 'colour':[50,100,50], 'physics':{'density':0.3}, 'restitution': 0.5, 'friction': 0.5, 'lethal': False})\n   obj.vel = 9, -7\n\ndef load():\n    pass\n\ndef tick():\n    pass\n\n",
   "objects": [
     {
       "colour": [88, 169, 32],

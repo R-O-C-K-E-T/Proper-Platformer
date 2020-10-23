@@ -6,6 +6,8 @@ class Vert:
     __slots__ = ['pos','prev','next']
     def __init__(self, pos):
         self.pos = tuple(pos)
+        self.prev = None
+        self.next = None
 
     def __eq__(self, other):
         return self is other or self.pos == other.pos
@@ -21,7 +23,7 @@ class Vert:
             if vert is self:
                 break
 
-def lineIntersection(L1,L2):
+def line_intersection(L1,L2):
     (x1,y1), (x2,y2) = L1
     (x3,y3), (x4,y4) = L2
 
@@ -30,8 +32,8 @@ def lineIntersection(L1,L2):
         return None
     return (((x1*y2-y1*x2)*(x3-x4) - (x1-x2)*(x3*y4-y3*x4)) / divisor, ((x1*y2-y1*x2)*(y3-y4) - (y1-y2)*(x3*y4-y3*x4)) / divisor)
 
-def lineBoundIntersection2(L1,L2):
-    pos = lineIntersection(L1,L2)
+def line_bound_intersection_2(L1,L2):
+    pos = line_intersection(L1,L2)
     if pos is None:
         return None
 
@@ -44,7 +46,7 @@ def lineBoundIntersection2(L1,L2):
 
     return pos
 
-def lineBoundIntersection(L1,L2): # TODO combine with util method
+def line_bound_intersection(L1,L2): # TODO combine with util method
     p1, p2 = np.array(L1)
     p3, p4 = np.array(L2)
     divisor = (p1[0]-p2[0])*(p3[1]-p4[1])-(p1[1]-p2[1])*(p3[0]-p4[0])
@@ -64,7 +66,7 @@ def lineBoundIntersection(L1,L2): # TODO combine with util method
     if not (0 < np.dot(pos - p3*divisor, d2) < np.dot(d2,d2)*divisor):
         return None
 
-    print('thing', pos / divisor, lineBoundIntersection2(L1,L2))
+    print('thing', pos / divisor, line_bound_intersection_2(L1,L2))
 
     return pos / divisor
 
@@ -73,10 +75,10 @@ def lineBoundIntersection(L1,L2): # TODO combine with util method
 def area(a,b,c):
     return (b[0]-a[0])*(c[1]-a[1])-((c[0]-a[0])*(b[1]-a[1]))
 
-def isConvex(a,b,c):
+def is_convex(a,b,c):
     return area(a,b,c) >= 0
 
-def isVisible(a, b):
+def is_visible(a, b):
     if a.next is b or a.prev is b:
         return False
     if area(a.next.pos, a.pos, b.pos) >= 0 and area(a.prev.pos, a.pos, b.pos) <= 0:
@@ -86,7 +88,7 @@ def isVisible(a, b):
     for test in a:
         if test is a or test is a.next or test is a.prev or test is b or test is b.next or test is b.prev:
             continue
-        if lineBoundIntersection((test.pos, test.next.pos), edge) is not None:
+        if line_bound_intersection((test.pos, test.next.pos), edge) is not None:
             return False
     return True
 
@@ -110,7 +112,7 @@ def decompose(start):
     if sum(util.cross2d(vert.pos, vert.next.pos) for vert in start) < 10*2:
         return []
     for a in start:
-        if not isConvex(a.prev.pos, a.pos, a.next.pos):
+        if not is_convex(a.prev.pos, a.pos, a.next.pos):
             break
     else:
         return [start]
@@ -118,18 +120,18 @@ def decompose(start):
     for other in sorted(start, key=lambda vert: (a.pos[0]-vert.pos[0])**2 + (a.pos[1]-vert.pos[1])**2):
         if other is a:
             continue
-        if isVisible(a, other):
+        if is_visible(a, other):
             break
     else:
         #print('dammit', v, [vert.pos for vert in start])
         raise ValueError
 
-    vertA = split(a, other)
-    vertB = split(other, a)
+    vert_a = split(a, other)
+    vert_b = split(other, a)
 
-    return decompose(vertA) + decompose(vertB)
+    return decompose(vert_a) + decompose(vert_b)
 
-def convertInto(polygon):
+def convert_into(polygon):
     start = Vert(polygon[0])
     prev = start
     for pos in polygon[1:]:
@@ -141,5 +143,5 @@ def convertInto(polygon):
     start.prev = prev
     return start
 
-def convertFrom(start):
+def convert_from(start):
     return [vert.pos for vert in start]

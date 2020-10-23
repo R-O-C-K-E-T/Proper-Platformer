@@ -1,15 +1,15 @@
-import copy, math, re, threading, pygame
-from pygame.locals import *
+import copy, math, re, pygame
+import pygame.locals as pg_locals
+
 import tkinter as tk
 import numpy as np
 from scipy.ndimage.filters import convolve1d
 from tkinter import ttk
-from tkinter import colorchooser
 from tkinter import simpledialog
 
 import shared, widgets, util, font
 from shared import get_objects
-from util import genBounds, genNormals, convertColour, lineIntersection, length2
+from util import length2
 
 class StopAction(Exception):
     def __init__(self, history_entry=None):
@@ -31,8 +31,8 @@ class Action:
             self.adjusted_constraints = None
         else:
             for constraint in shared.level['constraints']:
-                objA, objB = constraint['objects']
-                if (objA in self.objects) != (objB in self.objects):
+                obj_a, obj_b = constraint['objects']
+                if (obj_a in self.objects) != (obj_b in self.objects):
                     set_error('Cannot start action: hanging constraints exist in current selection')
                     raise StopAction
 
@@ -58,7 +58,7 @@ class Action:
 
     def render(self):
         for obj in self.adjusted:
-            shared.god.drawObject(obj)
+            shared.god.draw_object(obj)
 
         constraints = self.adjusted_constraints
         if constraints is None:
@@ -66,18 +66,18 @@ class Action:
 
         for joint in constraints:
             if joint['type'] == 'pivot':
-                shared.god.drawCircle(joint['pos'], 5, None)
+                shared.god.draw_circle(joint['pos'], 5, None)
             elif joint['type'] == 'fixed':
-                shared.god.drawLine(np.subtract(
+                shared.god.draw_line(np.subtract(
                     joint['pos'], (3, 3)), np.add(joint['pos'], (3, 3)))
-                shared.god.drawLine(np.subtract(
+                shared.god.draw_line(np.subtract(
                     joint['pos'], (-3, 3)), np.add(joint['pos'], (-3, 3)))
 
     def click(self, pos, button):
-        if button == BUTTON_RIGHT:
+        if button == pg_locals.BUTTON_RIGHT:
             self.cancel()
             raise StopAction
-        elif button == BUTTON_LEFT:
+        elif button == pg_locals.BUTTON_LEFT:
             self.apply()
             raise StopAction(self)
 
@@ -178,9 +178,9 @@ class Group:
         self.list = widgets.ScrolledList(frame, 150, 200)
         self.list.pack()
 
-        tk.Button(frame, text='Apply', command=applyWrapper(self.apply)).pack(side='left')
+        tk.Button(frame, text='Apply', command=apply_wrapper(self.apply)).pack(side='left')
         tk.Button(frame, text='Cancel', command=cancel_action).pack(side='left')
-        tk.Button(frame, text='Add', command=self.makeGroup).pack(side='right')
+        tk.Button(frame, text='Add', command=self.make_group).pack(side='right')
 
         groups = {}
         for i, obj in enumerate(shared.get_objects()):
@@ -194,11 +194,11 @@ class Group:
             element.members = sorted(val, reverse=True)
             self.list.insert(element)
 
-        self.list.updateScrollbar()
+        self.list.update_scrollbar()
 
-    def makeGroup(self):
+    def make_group(self):
         name = simpledialog.askstring('Enter Name', '')
-        if name is None or len(name) == 0 or any(name == child.name for child in self.list.getChildren()):
+        if name is None or len(name) == 0 or any(name == child.name for child in self.list.get_children()):
             return
         element = Group.GroupElement(self.list, name, self)
         element.members = shared.selection.copy()
@@ -215,7 +215,7 @@ class Group:
             shared.selection = element.members
 
     def click(self, pos, button):
-        obj = getObjectAt(pos)
+        obj = get_object_at(pos)
 
         if obj is None:
             return
@@ -229,12 +229,12 @@ class Group:
 
     def apply(self):
         groups = [[] for _ in range(len(shared.get_objects()))]
-        for element in self.list.getChildren():
+        for element in self.list.get_children():
             for member in element.members:
                 groups[member].append(element.name)
 
-        for newGroups, obj in zip(groups, shared.get_objects()):
-            obj['groups'] = newGroups
+        for new_groups, obj in zip(groups, shared.get_objects()):
+            obj['groups'] = new_groups
         insert()
 
     def render(self):
@@ -249,7 +249,7 @@ class Rotate(Action):
         self.centre = sum(np.sum(obj['points'], 0) / len(obj['points']) if obj['type'] == 'polygon' else np.array(obj['pos'])
                           for obj in self.adjusted) / len(self.adjusted)
 
-        self.startAngle = math.atan2(*self.centre - shared.god.getCursorPosition())
+        self.start_angle = math.atan2(*self.centre - shared.god.get_cursor_position())
 
         frame = tk.Frame(get_inner())
         insert(frame)
@@ -268,7 +268,7 @@ class Rotate(Action):
         tk.Entry(frame, textvariable=self.angle, width=3, validate='key',
                  validatecommand=validate).grid(row=0, column=1)
 
-        tk.Button(frame, text='Done', command=applyWrapper(
+        tk.Button(frame, text='Done', command=apply_wrapper(
             self.apply)).grid(row=1, column=0, columnspan=2)
 
         set_error('Click to finalise rotation')
@@ -276,10 +276,10 @@ class Rotate(Action):
     def render(self):
         if get_cursor_focus():
             a = math.atan2(
-                *(self.centre - shared.god.getCursorPosition())) - self.startAngle
+                *(self.centre - shared.god.get_cursor_position())) - self.start_angle
             self.angle.set(str(int(math.degrees(a))))
         else:
-            a = math.radians(util.tryDefault(lambda: int(self.angle.get()), 0))
+            a = math.radians(util.try_default(lambda: int(self.angle.get()), 0))
 
         rot = np.array([[math.cos(a), -math.sin(a)],
                         [math.sin(a), math.cos(a)]], float)
@@ -335,17 +335,17 @@ class Translate(Action):
         tk.Entry(frame, textvariable=self.strPos[1], width=5, validate='key', validatecommand=validate).grid(
             row=1, column=1)
 
-        tk.Button(frame, text='Done', command=applyWrapper(
+        tk.Button(frame, text='Done', command=apply_wrapper(
             self.apply)).grid(row=2, column=0, columnspan=2)
 
         #getError().set('Click to finalise translation')
 
     def render(self):
         if get_cursor_focus():
-            delta = (shared.god.getCursorPosition() - self.centre).astype(int)
+            delta = (shared.god.get_cursor_position() - self.centre).astype(int)
             [t.set(str(v)) for v, t in zip(delta, self.strPos)]
         else:
-            delta = np.array([util.tryDefault(lambda: int(var.get()), 0)
+            delta = np.array([util.try_default(lambda: int(var.get()), 0)
                               for var in self.strPos], dtype=int)
         for old, new in zip(self.objects, self.adjusted):
             if old['type'] == 'polygon':
@@ -387,7 +387,7 @@ class Delete(Action):
 
 class Smooth(Action):
     rule = 1, 2, 1
-    minAngle = 120  # replaced by stringvar
+    min_angle = 120  # replaced by stringvar
 
     def __init__(self):
         if any(shared.level['objects'][i]['type'] != 'polygon' for i in shared.selection):
@@ -399,32 +399,32 @@ class Smooth(Action):
         insert(frame)
         tk.Label(frame, text='Min Angle:').grid(row=0, column=0)
 
-        def checkAngle(text):
+        def check_angle(text):
             if all(c in '0123456789' for c in text):
                 if text == '':
-                    Smooth.minAngle.set('0')
+                    Smooth.min_angle.set('0')
                     frame.after_idle(lambda: entry.config(validate='key'))
                 elif int(text) > 180:
-                    Smooth.minAngle.set('180')
+                    Smooth.min_angle.set('180')
                     frame.after_idle(lambda: entry.config(validate='key'))
                 frame.after_idle(self.subdivide)
                 return True
             else:
                 return False
 
-        entry = tk.Entry(frame, textvariable=Smooth.minAngle, width=3,
-                         validate='key', validatecommand=(shared.root.register(checkAngle), '%P'))
+        entry = tk.Entry(frame, textvariable=Smooth.min_angle, width=3,
+                         validate='key', validatecommand=(shared.root.register(check_angle), '%P'))
         entry.grid(row=0, column=1)
 
         self.rule = Smooth.rule
         self.subdivide()
 
     def subdivide(self):
-        val = util.tryDefault(lambda: int(Smooth.minAngle.get()), 0)
+        val = util.try_default(lambda: int(Smooth.min_angle.get()), 0)
         if int(val) > 180:
-            minAngle = math.pi
+            min_angle = math.pi
         else:
-            minAngle = math.radians(int(val))
+            min_angle = math.radians(int(val))
 
         for obj, newObj in zip(self.objects, self.adjusted):
             points = obj['points']
@@ -436,7 +436,7 @@ class Smooth(Action):
                 angle = abs(angle)
                 angle = [angle, 2*math.pi-angle][angle > math.pi]
                 #angle += [0, 2*math.pi][angle<0]
-                if angle < minAngle:
+                if angle < min_angle:
                     splits.append(i)
             splits = np.array(splits, int)
 
@@ -473,8 +473,8 @@ class Edit(Action):
             raise StopAction()
 
         shared.selected_colour = col = self.objects[0]['colour']
-        shared.colour_button['bg'] = util.convertColour(col)
-        shared.colour_button['activebackground'] = util.convertColour(np.multiply(col, 15/16).astype(int))
+        shared.colour_button['bg'] = util.convert_colour(col)
+        shared.colour_button['activebackground'] = util.convert_colour(np.multiply(col, 15/16).astype(int))
         self.selection = None
 
     def click(self, pos, button):
@@ -490,7 +490,7 @@ class Edit(Action):
                     self.selection = i, a.copy(), b.tolist().copy()
                     return
         else:
-            if button == BUTTON_RIGHT:
+            if button == pg_locals.BUTTON_RIGHT:
                 if len(self.selection) == 2:
                     adjusted[self.selection[0]] = self.selection[1]
                 else:
@@ -504,11 +504,11 @@ class Edit(Action):
         adjusted = self.adjusted[0]
 
         if self.selection is not None:
-            pos = shared.god.getCursorPosition()
+            pos = shared.god.get_cursor_position()
             if len(self.selection) == 2:
                 adjusted['points'][self.selection[0]] = pos.tolist()
             else:
-                normal = util.getNormal(*np.array(self.selection[1:]))
+                normal = util.get_normal(*np.array(self.selection[1:]))
                 dist = np.dot(pos-self.selection[1], normal)
 
                 delta = (normal * dist).astype(int)
@@ -520,7 +520,7 @@ class Edit(Action):
         super().render()
 
         for point in adjusted['points']:
-            shared.god.drawCircle(point, 5, (0, 0, 0), None)
+            shared.god.draw_circle(point, 5, (0, 0, 0), None)
 
 
 class Duplicate(Action):
@@ -561,11 +561,11 @@ class Select:
         self.objects = []
 
     def click(self, pos, button):
-        if button == BUTTON_RIGHT:
+        if button == pg_locals.BUTTON_RIGHT:
             self.cancel()
             raise StopAction()
 
-        obj = getObjectAt(pos)
+        obj = get_object_at(pos)
         if obj is None:
             return
 
@@ -579,14 +579,14 @@ class Select:
         if n in shared.selection:
             shared.selection.remove(n)
             for i in shared.joint_selection.copy():
-                objA, objB = shared.level['constraints'][i]['objects']
-                if obj is objA or obj is objB:
+                obj_a, obj_b = shared.level['constraints'][i]['objects']
+                if obj is obj_a or obj is obj_b:
                     shared.joint_selection.remove(i)
         else:
             for i, constraint in enumerate(shared.level['constraints']):
-                objA, objB = constraint['objects']
-                if (obj is objA and any(get_objects()[n] is objB for n in shared.selection))\
-                or (obj is objB and any(get_objects()[n] is objA for n in shared.selection)):
+                obj_a, obj_b = constraint['objects']
+                if (obj is obj_a and any(get_objects()[n] is obj_b for n in shared.selection))\
+                or (obj is obj_b and any(get_objects()[n] is obj_a for n in shared.selection)):
                     shared.joint_selection.append(i)
             shared.joint_selection.sort(reverse=True)
 
@@ -601,7 +601,7 @@ class Select:
     def cancel(self):
         insert()
 
-def getObjectAt(pos):
+def get_object_at(pos):
     pos = np.array(pos)
     for obj in reversed(get_objects()):  # Top polygon checked first
         if obj['type'] == 'polygon':
@@ -621,7 +621,7 @@ def getObjectAt(pos):
             if length2(obj['pos'] - pos) <= obj['radius']**2:
                 return obj
         elif obj['type'] == 'text':
-            if font.isPointInChar(obj['char'], obj['size'], pos - obj['pos']):
+            if font.point_in_char(obj['char'], obj['size'], pos - obj['pos']):
                 return obj
     return None
 
@@ -629,11 +629,11 @@ class Create:
     def __init__(self):
         self.obj = None
         self.selection_snapshot = shared.selection.copy()
-        self.joinSelectionSnapshot = shared.joint_selection.copy()
+        self.joint_selection_snapshot = shared.joint_selection.copy()
 
     def render(self):
         if self.obj is not None:
-            shared.god.drawObject(add_default_properties(self.obj))
+            shared.god.draw_object(add_default_properties(self.obj))
 
     def apply(self):
         assert self.obj is not None
@@ -646,7 +646,7 @@ class Create:
     def undo(self):
         del shared.level['objects'][-1]
         shared.selection = self.selection_snapshot
-        shared.joint_selection = self.joinSelectionSnapshot
+        shared.joint_selection = self.joint_selection_snapshot
 
     def redo(self):
         self.apply()
@@ -658,26 +658,26 @@ class Circle(Create):
         self.radius = tk.StringVar(value='0')
         set_error('Click point to start circle')
 
-    def initGUI(self):
+    def init_gui(self):
         frame = tk.Frame(get_inner())
         insert(frame)
 
-        posIntValidator = createValidator('^[0-9]*$')
+        positive_int_validator = create_regex_validator('^[0-9]*$')
 
         tk.Label(frame, text='Radius:').grid(row=0, column=0)
         tk.Entry(frame, textvariable=self.radius, validate='key',
-                 validatecommand=posIntValidator, width=6).grid(row=0, column=1)
+                 validatecommand=positive_int_validator, wiperiodh=6).grid(row=0, column=1)
 
-        tk.Button(frame, text='Done', command=applyWrapper(
+        tk.Button(frame, text='Done', command=apply_wrapper(
             self.apply)).grid(row=1, column=0, columnspan=2)
 
     def click(self, pos, button):
-        if button == BUTTON_RIGHT:
+        if button == pg_locals.BUTTON_RIGHT:
             self.cancel()
 
         if self.pos is None:
             self.pos = pos
-            self.initGUI()
+            self.init_gui()
             return
 
         self.apply()
@@ -691,11 +691,11 @@ class Circle(Create):
     def render(self):
         if self.pos is not None:
             if get_cursor_focus():
-                delta = self.pos - shared.god.getCursorPosition()
+                delta = self.pos - shared.god.get_cursor_position()
                 radius = round(math.sqrt(sum(delta**2)))
                 self.radius.set(str(radius))
             else:
-                radius = util.tryDefault(lambda: int(self.radius.get()), 0)
+                radius = util.try_default(lambda: int(self.radius.get()), 0)
 
             if radius < 2:
                 return
@@ -718,12 +718,12 @@ class NGon(Create):
 
         set_error('Click point to start N-Gon')
 
-    def initGUI(self):
+    def init_gui(self):
         frame = tk.Frame(get_inner())
         insert(frame)
 
-        intValidator = createValidator('^-?[0-9]*$')
-        posIntValidator = createValidator('^[0-9]*$')
+        intValidator = create_regex_validator('^-?[0-9]*$')
+        positive_int_validator = create_regex_validator('^[0-9]*$')
 
         tk.Label(frame, text='Rotation:').grid(row=0, column=0)
         tk.Entry(frame, textvariable=self.rotation, validate='key',
@@ -731,29 +731,29 @@ class NGon(Create):
 
         tk.Label(frame, text='Radius:').grid(row=1, column=0)
         tk.Entry(frame, textvariable=self.radius, validate='key',
-                 validatecommand=posIntValidator, width=6).grid(row=1, column=1)
+                 validatecommand=positive_int_validator, width=6).grid(row=1, column=1)
 
         tk.Label(frame, text='Sides:').grid(row=2, column=0)
         tk.Entry(frame, textvariable=self.sides, validate='key',
-                 validatecommand=posIntValidator, width=6).grid(row=2, column=1)
+                 validatecommand=positive_int_validator, width=6).grid(row=2, column=1)
 
-        tk.Button(frame, text='Done', command=applyWrapper(
+        tk.Button(frame, text='Done', command=apply_wrapper(
             self.apply)).grid(row=3, column=0, columnspan=2)
 
     def click(self, pos, button):
-        if button == BUTTON_RIGHT:
+        if button == pg_locals.BUTTON_RIGHT:
             self.cancel()
 
         if self.centre is None:
             self.centre = pos
-            self.initGUI()
+            self.init_gui()
             return
 
         self.apply()
         raise StopAction(self)
 
     def apply(self):
-        if util.tryDefault(lambda: int(self.radius.get()), 0) < 10:
+        if util.try_default(lambda: int(self.radius.get()), 0) < 10:
             set_error('Radius too small')
             return
 
@@ -761,23 +761,23 @@ class NGon(Create):
         set_error('N-Gon Created')
         insert()
 
-    def getPoints(self):
-        rotation = util.tryDefault(lambda: int(self.rotation.get()), 0)
-        sides = max(util.tryDefault(lambda: int(self.sides.get()), 0), 3)
+    def get_points(self):
+        rotation = util.try_default(lambda: int(self.rotation.get()), 0)
+        sides = max(util.try_default(lambda: int(self.sides.get()), 0), 3)
         points = np.array(list(map(lambda v: [math.cos(v), math.sin(v)], [
                           i*2*math.pi/sides + math.radians(rotation) for i in range(sides)])))
-        points *= util.tryDefault(lambda: int(self.radius.get()), 0)
+        points *= util.try_default(lambda: int(self.radius.get()), 0)
         points += self.centre
         return points.astype(int).tolist()
 
     def render(self):
         if self.centre is not None:
             if get_cursor_focus():
-                delta = self.centre - shared.god.getCursorPosition()
+                delta = self.centre - shared.god.get_cursor_position()
                 self.radius.set(str(round(math.sqrt(sum(delta**2)))))
                 self.rotation.set(str(round(-math.degrees(math.atan2(*delta)))))
 
-            self.obj = {'type': 'polygon', 'points': self.getPoints()}
+            self.obj = {'type': 'polygon', 'points': self.get_points()}
 
         super().render()
 
@@ -788,21 +788,21 @@ class NGon(Create):
 
 class Text(Create):
     def __init__(self):
-        self.pos = shared.god.getCursorPosition()
+        self.pos = shared.god.get_cursor_position()
         self.content = tk.StringVar(value='0')
         self.size = tk.StringVar(value='70')
 
         frame = tk.Frame(get_inner())
         insert(frame)
 
-        posIntValidator = createValidator('^[0-9]*$')
+        positive_int_validator = create_regex_validator('^[0-9]*$')
 
         tk.Label(frame, text='Content:').grid(row=0, column=0)
         tk.Entry(frame, textvariable=self.content, validate='key', width=6).grid(row=0, column=1)
 
         tk.Label(frame, text='Size:').grid(row=1, column=0)
         tk.Entry(frame, textvariable=self.size, validate='key',
-                 validatecommand=posIntValidator, width=6).grid(row=1, column=1)
+                 validatecommand=positive_int_validator, width=6).grid(row=1, column=1)
 
     def apply(self):
         try:
@@ -823,18 +823,18 @@ class Text(Create):
         insert()
 
     def click(self, pos, button):
-        if button == BUTTON_RIGHT:
+        if button == pg_locals.BUTTON_RIGHT:
             self.cancel()
             raise StopAction()
-        elif button == BUTTON_LEFT:
+        elif button == pg_locals.BUTTON_LEFT:
             self.apply()
             raise StopAction(self)
 
     def render(self):
         if get_cursor_focus():
-            self.pos = shared.god.getCursorPosition().tolist()
+            self.pos = shared.god.get_cursor_position().tolist()
 
-        size = util.tryDefault(lambda: int(self.size.get()), 0)
+        size = util.try_default(lambda: int(self.size.get()), 0)
 
         if len(self.content.get()) != 1 or size < 10:
             self.obj = None
@@ -855,7 +855,7 @@ class Rectangle(Create):
         set_error('Click point to start Rectangle')
 
     def click(self, pos, button):
-        if button == BUTTON_RIGHT:
+        if button == pg_locals.BUTTON_RIGHT:
             self.cancel()
             raise StopAction()
 
@@ -867,7 +867,7 @@ class Rectangle(Create):
 
     def render(self):
         if len(self.points) == 1:
-            corners = self.points[0], shared.god.getCursorPosition()
+            corners = self.points[0], shared.god.get_cursor_position()
             points = np.array([[corners[i][0], corners[j][1]]
                                for i, j in ((0, 0), (0, 1), (1, 1), (1, 0))], int)
             self.obj = {'type':'polygon', 'points': points.tolist()}
@@ -886,14 +886,14 @@ class Polygon(Create):
         super().__init__()
 
     def click(self, pos, button):
-        if button == BUTTON_RIGHT:
+        if button == pg_locals.BUTTON_RIGHT:
             self.cancel()
             raise StopAction()
         self.points.append(pos.tolist())
 
     def render(self):
         if len(self.points) == 2:
-            shared.god.drawLine(self.points[0], self.points[1])
+            shared.god.draw_line(self.points[0], self.points[1])
         elif len(self.points) > 2:
             self.obj = {'type':'polygon', 'points': self.points}
         super().render()
@@ -907,13 +907,13 @@ class Polygon(Create):
         set_error('Polgon creation cancelled')
 
 
-def polygonPressed():
-    if type(shared.god.current_action) == Polygon:
+def polygon_pressed():
+    if isinstance(shared.god.current_action, Polygon):
         points = shared.god.current_action.points
         if len(points) >= 3:
             '''for i, L1 in enumerate(zip(points, np.roll(points,-1,0))):
                 for L2 in zip(points[i:], np.roll(points,-1,0)[i:]):
-                    output = lineIntersection(L1,L2)
+                    output = line_intersection(L1,L2)
                     if output is False:
                         continue
                     if any((p.astype(int) == output.astype(int)).all() for p in [L1[0],L1[1],L2[0],L2[1]]):
@@ -929,7 +929,7 @@ def polygonPressed():
         shared.god.current_action = Polygon()
 
 
-def createValidator(regex):
+def create_regex_validator(regex):
     if type(regex) == str:
         regex = re.compile(regex)
 
@@ -939,7 +939,7 @@ def createValidator(regex):
     return command, '%P'
 
 
-def applyWrapper(apply):
+def apply_wrapper(apply):
     def function():
         shared.god.current_action = apply()
     return function
@@ -951,13 +951,13 @@ class TriggerProperty(widgets.Editor, ttk.Combobox):
                          width=6, **kwargs)
         self.bind('<<ComboboxSelected>>', self.selected)
         script = {}
-        if 'serverScript' in shared.level:
-            exec(shared.level['serverScript'], script, script)
+        if 'server_script' in shared.level:
+            exec(shared.level['server_script'], script, script)
         self['values'] = [str(key) for key in script.keys()] + ['']
 
     def selected(self, e):
         val = self.get()
-        self.setTarget(None if val == '' else val)
+        self.set_target(None if val == '' else val)
 
 class Properties(Action):
     def __init__(self):
@@ -966,7 +966,7 @@ class Properties(Action):
         self.window.title('Selection')
         self.window.resizable(False, False)
         self.window.protocol("WM_DELETE_WINDOW", cancel_action)
-        self.newValues = {}
+        self.new_values = {}
 
         inner = tk.Frame(self.window )
         inner.pack(padx=5, pady=5)
@@ -974,36 +974,36 @@ class Properties(Action):
         primary = tk.Frame(inner)
         primary.pack()
 
-        def posFloatParser(s):
+        def positive_float_parser(s):
             if s == '':
                 return 0
             v = float(s)
             if v < 0:
                 raise ValueError
             return v
-        def posIntParser(s):
+        def positive_int_parser(s):
             if s == '':
                 return 0
             v = int(s)
             if v < 0:
                 raise ValueError
             return v
-        def intParser(s):
+        def int_parser(s):
             if s in ('','-'):
                 return 0
             return int(s)
 
         tk.Label(primary, text='Friction:').grid(row=0, column=0)
-        widgets.PropertyEntry(primary, self.newValues, ('friction',), posFloatParser, width=6).grid(row=0, column=1)
+        widgets.PropertyEntry(primary, self.new_values, ('friction',), positive_float_parser, width=6).grid(row=0, column=1)
 
         tk.Label(primary, text='Resitution:').grid(row=1, column=0)
-        widgets.PropertyEntry(primary, self.newValues, ('restitution',), posFloatParser, width=6).grid(row=1, column=1)
+        widgets.PropertyEntry(primary, self.new_values, ('restitution',), positive_float_parser, width=6).grid(row=1, column=1)
 
         tk.Label(primary, text='Lethal:').grid(row=2, column=0)
-        widgets.BoolProperty(primary, self.newValues, ('lethal',)).grid(row=2, column=1)
+        widgets.BoolProperty(primary, self.new_values, ('lethal',)).grid(row=2, column=1)
 
         tk.Label(primary, text='Trigger:').grid(row=3, column=0)
-        TriggerProperty(primary, self.newValues).grid(row=3, column=1)
+        TriggerProperty(primary, self.new_values).grid(row=3, column=1)
 
         ttk.Separator(inner, orient=tk.HORIZONTAL).pack(fill='x', pady=5)
 
@@ -1014,10 +1014,10 @@ class Properties(Action):
         notebook.add(physics, text='Physics', sticky='n')
 
         densityEntry = widgets.PropertyEntry(
-            physics, self.newValues, ('physics', 'density'), posFloatParser, width=6)
+            physics, self.new_values, ('physics', 'density'), positive_float_parser, width=6)
 
         tk.Label(physics, text='Enabled:').grid(row=0, column=0)
-        widgets.ParentProperty(physics, self.newValues, ('physics',), [densityEntry]).grid(row=0, column=1)
+        widgets.ParentProperty(physics, self.new_values, ('physics',), [densityEntry]).grid(row=0, column=1)
 
         tk.Label(physics, text='Density:').grid(row=1, column=0)
         densityEntry.grid(row=1, column=1)
@@ -1025,13 +1025,13 @@ class Properties(Action):
         animated = tk.Frame(notebook, padx=5)
         notebook.add(animated, text='Animation', sticky='n')
         children = [
-            widgets.PropertyEntry(animated, self.newValues, ('animated', 'period'), posIntParser, width=6),
-            widgets.PropertyEntry(animated, self.newValues, ('animated', 'xOffset'), intParser, width=6),
-            widgets.PropertyEntry(animated, self.newValues, ('animated', 'yOffset'), intParser, width=6),
-            widgets.PropertyEntry(animated, self.newValues, ('animated', 'tOffset'), intParser, width=6)
+            widgets.PropertyEntry(animated, self.new_values, ('animated', 'period'), positive_int_parser, width=6),
+            widgets.PropertyEntry(animated, self.new_values, ('animated', 'dx'), int_parser, width=6),
+            widgets.PropertyEntry(animated, self.new_values, ('animated', 'dy'), int_parser, width=6),
+            widgets.PropertyEntry(animated, self.new_values, ('animated', 'dt'), int_parser, width=6)
         ]
         tk.Label(animated, text='Enabled:').grid(row=0, column=0)
-        widgets.ParentProperty(animated, self.newValues, ('animated',), children).grid(row=0, column=1)
+        widgets.ParentProperty(animated, self.new_values, ('animated',), children).grid(row=0, column=1)
         for i, (name, child) in enumerate(zip(('Period:', 'X-Offset:', 'Y-Offset:', 'T-Offset:'), children)):
             tk.Label(animated, text=name).grid(row=i+1, column=0)
             child.grid(row=i+1, column=1)
@@ -1040,13 +1040,13 @@ class Properties(Action):
         notebook.add(checkpoint, text='Checkpoint', sticky='n')
 
         children = [
-            widgets.ColourProperty(checkpoint, self.newValues, ('checkpoint','colour')),
-            widgets.PropertyEntry(checkpoint, self.newValues, ('checkpoint', 'xOffset'), intParser, width=6),
-            widgets.PropertyEntry(checkpoint, self.newValues, ('checkpoint', 'yOffset'), intParser, width=6),
+            widgets.ColourProperty(checkpoint, self.new_values, ('checkpoint','colour')),
+            widgets.PropertyEntry(checkpoint, self.new_values, ('checkpoint', 'dx'), int_parser, width=6),
+            widgets.PropertyEntry(checkpoint, self.new_values, ('checkpoint', 'dy'), int_parser, width=6),
         ]
 
         tk.Label(checkpoint, text='Enabled:').grid(row=0, column=0)
-        widgets.ParentProperty(checkpoint, self.newValues, ('checkpoint',), children).grid(row=0,column=1)
+        widgets.ParentProperty(checkpoint, self.new_values, ('checkpoint',), children).grid(row=0,column=1)
         for i, (name, child) in enumerate(zip(('Colour:','X-Offset:','Y-Offset:'), children)):
             tk.Label(checkpoint, text=name).grid(row=i+1, column=0)
             child.grid(row=i+1, column=1)
@@ -1054,14 +1054,14 @@ class Properties(Action):
 
         def apply():
             for obj in self.adjusted:
-                obj.update(self.newValues)
+                obj.update(self.new_values)
                 def update(source, dest):
                     for key, val in source.items():
                         if type(val) == dict:
                             update(val, dest[key])
                         elif val is None:
                             del dest[key]
-                update(self.newValues, obj)
+                update(self.new_values, obj)
             self.window.destroy()
             self.apply()
             shared.god.current_action = None
@@ -1091,19 +1091,19 @@ class AddJoint:
                            for obj in self.objects if obj['type'] == 'circle']
 
     def render(self):
-        self.point = shared.god.getCursorPosition().astype(int)
+        self.point = shared.god.get_cursor_position().astype(int)
 
         closest = min(self.snapPoints, key=lambda v: util.length2(
             v-self.point), default=None)
         if closest is not None and util.length2(self.point-closest) < 3**2:
             self.point = closest
 
-        shared.god.drawCircle(self.point, 5, (0, 0, 255))
+        shared.god.draw_circle(self.point, 5, (0, 0, 255))
 
     def click(self, button, constraint):
-        if button == BUTTON_RIGHT:
+        if button == pg_locals.BUTTON_RIGHT:
             self.cancel()
-            raise StopAction()
+            raise StopAction
         self.constraint = constraint
         self.apply()
         raise StopAction(self)
@@ -1191,12 +1191,12 @@ def cancel_action():
 
 
 def set_error(value):
-    error = tk.StringVar(name='errorVar')
+    error = tk.StringVar(name='error_var')
     error.set(value)
 
 
 def get_inner():
-    return shared.root.nametowidget('.innerFrame')
+    return shared.root.nametowidget('.inner_frame')
 
 
 def insert(widget=None):

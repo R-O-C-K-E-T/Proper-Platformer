@@ -3,8 +3,8 @@
   "spawn": [0, 0],
   "constraints": [],
   "_spawn": [3095, -235],
-  "serverScript": "\ndef hideObstacle(self, other, normal, localA, localB):\n   if self in waiting:\n      waiting[self] = time, waiting[self][1]\n      return\n\n   self.colour = 200, 0, 0\n   obstacle = next(filter(lambda obj: self.groups[0] in obj.groups, obstacles))\n   \n   def func():\n      add_object(obstacle)\n   \n   removeObject(obstacle)\n   waiting[self] = time, func\n\ndef showPlatform(self, other, normal, localA, localB):\n    if self in waiting:\n        waiting[self] = time, waiting[self][1]\n        return\n    \n    self.colour = 200, 0, 0\n    platform = next(filter(lambda obj: self.groups[0] in obj.groups, hiddenPlatforms))\n    \n    def func():\n        removeObject(platform)\n    \n    add_object(platform)\n    waiting[self] = time, func\n\ndef hideBeam(self, other, normal, localA, localB):\n    global beamButton\n    if beamButton is not None:\n        beamButton = time, beamButton[1]\n        return\n    \n    removeObject(beam)\n    \n    self.colour = 200, 0, 0\n    def func():\n        self.colour = self.initialState['colour']\n        add_object(beam)\n    beamButton = time, func\n\ndef movePlatformLeft(self, other, normal, localA, localB):\n   group = self.groups[0]\n   if group == '0':\n       dist = 554\n   elif group == '1':\n       dist = 300\n   elif group == '2':\n       dist = 312\n\n   for platform in platforms:\n      if group not in platform.groups:\n         continue\n      if platform.pos[0]+2 > dist + platform.initialState['pos'][0]:\n         target = dist + platform.initialState['pos'][0]\n         platform.vel = target - platform.pos[0], 0\n      else:\n         platform.vel = 2,0\n   self.colour = 200, 0, 0\n\n   def func():\n      for platform in platforms:\n         platform.vel = 0,0\n   \n   waiting[self] = time, func\n\ndef movePlatformRight(self, other, normal, localA, localB):\n   group = self.groups[0]\n   for platform in platforms:\n      if group not in platform.groups:\n         continue\n      if platform.pos[0]-2 < platform.initialState['pos'][0]:\n         platform.vel = platform.initialState['pos'][0]-platform.pos[0], 0\n      else:\n         platform.vel = -2,0\n   self.colour = 200, 0, 0\n\n   def func():\n      for platform in platforms:\n         platform.vel = 0,0\n   \n   waiting[self] = time, func\n\ndef onDeath(player): # Called whenever any player dies.\n    pass\n\ndef load(): # Will be called every time physics is reset\n    global platforms, waiting, obstacles, hiddenPlatforms, beam, beamButton, lilypads\n    platforms = getGroup('Platform')\n    obstacles = getGroup('Obstacle')\n    hiddenPlatforms = getGroup('HiddenPlatform')\n    for obj in hiddenPlatforms:\n        removeObject(obj)\n    beam = getGroup('Beam')[0]\n    beamButton = None\n    lilypads = []\n    waiting = {}\n\ndef tick(): # Will be called once per tick\n    global beamButton\n    for obj, (t, callback) in waiting.copy().items():\n       if t + 3 < time:\n          obj.colour = obj.initialState['colour']\n          callback()\n          del waiting[obj]\n    \n    if beamButton is not None and beamButton[0] + 20 < time:\n        beamButton[1]()\n        beamButton = None\n\n    if beamButton is None and all(obj.vel[0] < 2.5 for obj in lilypads):\n        obj = createObject({'physics':{'density':0.3}, 'colour':[217,217,0], 'type': 'polygon', 'points': [[-30,-10],[30,-10],[30,10],[-30,10]]})\n        obj.pos = 3710, -350\n        obj.vel = 3, 0\n        lilypads.append(obj)\n        if len(lilypads) > 3:\n            removeObject(lilypads.pop(0))\n    for obj in lilypads.copy():\n        if obj.pos[0] > 4930:\n            lilypads.remove(obj)\n            removeObject(obj)\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
-  "clientScript": "def hideObstacle(self, other, normal, localA, localB):\n   if self in waiting:\n      waiting[self] = time, waiting[self][1]\n      return\n\n   self.colour = 200, 0, 0\n   def func():\n      pass\n   waiting[self] = time, func\n\ndef showPlatform(self, other, normal, localA, localB):\n    if self in waiting:\n        waiting[self] = time, waiting[self][1]\n        return\n    \n    self.colour = 200, 0, 0\n    def func():\n        pass\n    waiting[self] = time, func\n\ndef hideBeam(self, other, normal, localA, localB):\n    global beamButton\n    if beamButton is not None:\n        beamButton = time, beamButton[1]\n        return\n    \n    self.colour = 200, 0, 0\n    def func():\n        self.colour = self.initialState['colour']\n    beamButton = time, func\n\ndef movePlatformLeft(self, other, normal, localA, localB):\n   group = self.groups[0]\n   if group == '0':\n       dist = 554\n   elif group == '1':\n       dist = 300\n   elif group == '2':\n       dist = 312\n\n   for platform in platforms:\n      if group not in platform.groups:\n         continue\n      if platform.pos[0]+2 > dist + platform.initialState['pos'][0]:\n         target = dist + platform.initialState['pos'][0]\n         platform.vel = target - platform.pos[0], 0\n      else:\n         platform.vel = 2,0\n   self.colour = 200, 0, 0\n\n   def func():\n      for platform in platforms:\n         platform.vel = 0,0\n   \n   waiting[self] = time, func\n\ndef movePlatformRight(self, other, normal, localA, localB):\n   group = self.groups[0]\n   for platform in platforms:\n      if group not in platform.groups:\n         continue\n      if platform.pos[0]-2 < platform.initialState['pos'][0]:\n         platform.vel = platform.initialState['pos'][0]-platform.pos[0], 0\n      else:\n         platform.vel = -2,0\n   self.colour = 200, 0, 0\n\n   def func():\n      for platform in platforms:\n         platform.vel = 0,0\n   \n   waiting[self] = time, func\n\ndef onDeath(player): # Called whenever any player dies.\n    pass\n\ndef load(): # Will be called every time physics is reset\n    global platforms, waiting, obstacles, beamButton\n    platforms = []#getGroup('Platform')\n    obstacles = []#getGroup('Obstacle')\n    beamButton = None\n    waiting = {}\n\ndef add_object(obj):\n    if not isinstance(obj, Object):\n        return\n    if 'Platform' in obj.groups:\n        platforms.append(obj)\n    if 'Obstacle' in obj.groups:\n        obstacles.append(obj)\n\ndef tick(): # Will be called once per tick\n    global beamButton\n    for obj, (t, callback) in waiting.copy().items():\n       if t + 3 < time:\n          obj.colour = obj.initialState['colour']\n          callback()\n          del waiting[obj]\n\n    if beamButton is not None and beamButton[0] + 20 < time:\n        beamButton[1]()\n        beamButton = None\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+  "server_script": "\ndef hide_obstacle(self, other, normal, local_a, local_b):\n   if self in waiting:\n      waiting[self] = time, waiting[self][1]\n      return\n\n   self.colour = 200, 0, 0\n   obstacle = next(filter(lambda obj: self.groups[0] in obj.groups, obstacles))\n   \n   def func():\n      add_object(obstacle)\n   \n   remove_object(obstacle)\n   waiting[self] = time, func\n\ndef show_platform(self, other, normal, local_a, local_b):\n    if self in waiting:\n        waiting[self] = time, waiting[self][1]\n        return\n    \n    self.colour = 200, 0, 0\n    platform = next(filter(lambda obj: self.groups[0] in obj.groups, hiddenPlatforms))\n    \n    def func():\n        remove_object(platform)\n    \n    add_object(platform)\n    waiting[self] = time, func\n\ndef hide_beam(self, other, normal, local_a, local_b):\n    global beamButton\n    if beamButton is not None:\n        beamButton = time, beamButton[1]\n        return\n    \n    remove_object(beam)\n    \n    self.colour = 200, 0, 0\n    def func():\n        self.colour = self.initial_state['colour']\n        add_object(beam)\n    beamButton = time, func\n\ndef move_platform_left(self, other, normal, local_a, local_b):\n   group = self.groups[0]\n   if group == '0':\n       dist = 554\n   elif group == '1':\n       dist = 300\n   elif group == '2':\n       dist = 312\n\n   for platform in platforms:\n      if group not in platform.groups:\n         continue\n      if platform.pos[0]+2 > dist + platform.initial_state['pos'][0]:\n         target = dist + platform.initial_state['pos'][0]\n         platform.vel = target - platform.pos[0], 0\n      else:\n         platform.vel = 2,0\n   self.colour = 200, 0, 0\n\n   def func():\n      for platform in platforms:\n         platform.vel = 0,0\n   \n   waiting[self] = time, func\n\ndef move_platform_right(self, other, normal, local_a, local_b):\n   group = self.groups[0]\n   for platform in platforms:\n      if group not in platform.groups:\n         continue\n      if platform.pos[0]-2 < platform.initial_state['pos'][0]:\n         platform.vel = platform.initial_state['pos'][0]-platform.pos[0], 0\n      else:\n         platform.vel = -2,0\n   self.colour = 200, 0, 0\n\n   def func():\n      for platform in platforms:\n         platform.vel = 0,0\n   \n   waiting[self] = time, func\n\ndef on_death(player): # Called whenever any player dies.\n    pass\n\ndef load(): # Will be called every time physics is reset\n    global platforms, waiting, obstacles, hiddenPlatforms, beam, beamButton, lilypads\n    platforms = get_group('Platform')\n    obstacles = get_group('Obstacle')\n    hiddenPlatforms = get_group('HiddenPlatform')\n    for obj in hiddenPlatforms:\n        remove_object(obj)\n    beam = get_group('Beam')[0]\n    beamButton = None\n    lilypads = []\n    waiting = {}\n\ndef tick(): # Will be called once per tick\n    global beamButton\n    for obj, (t, callback) in waiting.copy().items():\n       if t + 3 < time:\n          obj.colour = obj.initial_state['colour']\n          callback()\n          del waiting[obj]\n    \n    if beamButton is not None and beamButton[0] + 20 < time:\n        beamButton[1]()\n        beamButton = None\n\n    if beamButton is None and all(obj.vel[0] < 2.5 for obj in lilypads):\n        obj = create_object({'physics':{'density':0.3}, 'colour':[217,217,0], 'type': 'polygon', 'points': [[-30,-10],[30,-10],[30,10],[-30,10]]})\n        obj.pos = 3710, -350\n        obj.vel = 3, 0\n        lilypads.append(obj)\n        if len(lilypads) > 3:\n            remove_object(lilypads.pop(0))\n    for obj in lilypads.copy():\n        if obj.pos[0] > 4930:\n            lilypads.remove(obj)\n            remove_object(obj)\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+  "client_script": "def hide_obstacle(self, other, normal, local_a, local_b):\n   if self in waiting:\n      waiting[self] = time, waiting[self][1]\n      return\n\n   self.colour = 200, 0, 0\n   def func():\n      pass\n   waiting[self] = time, func\n\ndef show_platform(self, other, normal, local_a, local_b):\n    if self in waiting:\n        waiting[self] = time, waiting[self][1]\n        return\n    \n    self.colour = 200, 0, 0\n    def func():\n        pass\n    waiting[self] = time, func\n\ndef hide_beam(self, other, normal, local_a, local_b):\n    global beamButton\n    if beamButton is not None:\n        beamButton = time, beamButton[1]\n        return\n    \n    self.colour = 200, 0, 0\n    def func():\n        self.colour = self.initial_state['colour']\n    beamButton = time, func\n\ndef move_platform_left(self, other, normal, local_a, local_b):\n   group = self.groups[0]\n   if group == '0':\n       dist = 554\n   elif group == '1':\n       dist = 300\n   elif group == '2':\n       dist = 312\n\n   for platform in platforms:\n      if group not in platform.groups:\n         continue\n      if platform.pos[0]+2 > dist + platform.initial_state['pos'][0]:\n         target = dist + platform.initial_state['pos'][0]\n         platform.vel = target - platform.pos[0], 0\n      else:\n         platform.vel = 2,0\n   self.colour = 200, 0, 0\n\n   def func():\n      for platform in platforms:\n         platform.vel = 0,0\n   \n   waiting[self] = time, func\n\ndef move_platform_right(self, other, normal, local_a, local_b):\n   group = self.groups[0]\n   for platform in platforms:\n      if group not in platform.groups:\n         continue\n      if platform.pos[0]-2 < platform.initial_state['pos'][0]:\n         platform.vel = platform.initial_state['pos'][0]-platform.pos[0], 0\n      else:\n         platform.vel = -2,0\n   self.colour = 200, 0, 0\n\n   def func():\n      for platform in platforms:\n         platform.vel = 0,0\n   \n   waiting[self] = time, func\n\ndef on_death(player): # Called whenever any player dies.\n    pass\n\ndef load(): # Will be called every time physics is reset\n    global platforms, waiting, obstacles, beamButton\n    platforms = []#get_group('Platform')\n    obstacles = []#get_group('Obstacle')\n    beamButton = None\n    waiting = {}\n\ndef add_object(obj):\n    if not isinstance(obj, Object):\n        return\n    if 'Platform' in obj.groups:\n        platforms.append(obj)\n    if 'Obstacle' in obj.groups:\n        obstacles.append(obj)\n\ndef tick(): # Will be called once per tick\n    global beamButton\n    for obj, (t, callback) in waiting.copy().items():\n       if t + 3 < time:\n          obj.colour = obj.initial_state['colour']\n          callback()\n          del waiting[obj]\n\n    if beamButton is not None and beamButton[0] + 20 < time:\n        beamButton[1]()\n        beamButton = None\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
   "objects": [
     {
       "colour": [187, 66, 23],
@@ -23,7 +23,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[1135, -244], [1135, -110], [1161, -110], [1161, -244]],
-      "animated": {"period": 120, "xOffset": 0, "yOffset": -80, "tOffset": 0}
+      "animated": {"period": 120, "dx": 0, "dy": -80, "dt": 0}
     },
     {
       "colour": [89, 204, 198],
@@ -32,7 +32,7 @@
       "lethal": false,
       "groups": [],
       "type": "polygon",
-      "checkpoint": {"colour": [204, 50, 200], "xOffset": 0, "yOffset": 30},
+      "checkpoint": {"colour": [204, 50, 200], "dx": 0, "dy": 30},
       "points": [[1970, -397], [1970, -377], [2014, -377], [2014, -397]]
     },
     {
@@ -97,7 +97,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[2564, -181], [2564, -165], [2652, -165], [2652, -181]],
-      "animated": {"period": 700, "xOffset": -550, "yOffset": 0, "tOffset": 0}
+      "animated": {"period": 700, "dx": -550, "dy": 0, "dt": 0}
     },
     {
       "colour": [128, 188, 84],
@@ -115,7 +115,7 @@
       "lethal": false,
       "groups": [],
       "type": "polygon",
-      "checkpoint": {"colour": [204, 50, 200], "xOffset": 0, "yOffset": 30},
+      "checkpoint": {"colour": [204, 50, 200], "dx": 0, "dy": 30},
       "points": [[686, -161], [686, -141], [730, -141], [730, -161]]
     },
     {
@@ -143,7 +143,7 @@
       "lethal": false,
       "groups": [],
       "type": "polygon",
-      "checkpoint": {"colour": [204, 50, 200], "xOffset": 0, "yOffset": 30},
+      "checkpoint": {"colour": [204, 50, 200], "dx": 0, "dy": 30},
       "points": [[1498, -306], [1498, -286], [1542, -286], [1542, -306]]
     },
     {
@@ -207,7 +207,7 @@
       "lethal": false,
       "groups": [],
       "type": "polygon",
-      "checkpoint": {"colour": [204, 50, 200], "xOffset": 0, "yOffset": 30},
+      "checkpoint": {"colour": [204, 50, 200], "dx": 0, "dy": 30},
       "points": [[2696, -299], [2696, -279], [2740, -279], [2740, -299]]
     },
     {
@@ -236,7 +236,7 @@
       "groups": ["1", "2"],
       "type": "polygon",
       "points": [[1680, 36], [1680, 41], [1725, 41], [1725, 36]],
-      "trigger": "movePlatformRight"
+      "trigger": "move_platform_right"
     },
     {
       "colour": [128, 188, 84],
@@ -255,7 +255,7 @@
       "groups": ["0"],
       "type": "polygon",
       "points": [[1030, 36], [1030, 41], [1075, 41], [1075, 36]],
-      "trigger": "movePlatformRight"
+      "trigger": "move_platform_right"
     },
     {
       "colour": [231, 231, 231],
@@ -265,7 +265,7 @@
       "groups": ["0"],
       "type": "polygon",
       "points": [[1125, 36], [1125, 41], [1170, 41], [1170, 36]],
-      "trigger": "movePlatformLeft"
+      "trigger": "move_platform_left"
     },
     {
       "colour": [231, 231, 231],
@@ -275,7 +275,7 @@
       "groups": ["2"],
       "type": "polygon",
       "points": [[3173, 36], [3173, 41], [3218, 41], [3218, 36]],
-      "trigger": "movePlatformRight"
+      "trigger": "move_platform_right"
     },
     {
       "colour": [128, 188, 84],
@@ -294,7 +294,7 @@
       "groups": ["2"],
       "type": "polygon",
       "points": [[3268, 36], [3268, 41], [3313, 41], [3313, 36]],
-      "trigger": "movePlatformLeft"
+      "trigger": "move_platform_left"
     },
     {
       "colour": [231, 231, 231],
@@ -304,7 +304,7 @@
       "groups": ["c"],
       "type": "polygon",
       "points": [[2969, 38], [2969, 43], [3014, 43], [3014, 38]],
-      "trigger": "showPlatform"
+      "trigger": "show_platform"
     },
     {
       "colour": [231, 231, 231],
@@ -314,7 +314,7 @@
       "groups": ["a"],
       "type": "polygon",
       "points": [[2781, 38], [2781, 43], [2826, 43], [2826, 38]],
-      "trigger": "showPlatform"
+      "trigger": "show_platform"
     },
     {
       "colour": [231, 231, 231],
@@ -324,7 +324,7 @@
       "groups": ["b"],
       "type": "polygon",
       "points": [[2875, 38], [2875, 43], [2920, 43], [2920, 38]],
-      "trigger": "showPlatform"
+      "trigger": "show_platform"
     },
     {
       "colour": [231, 231, 231],
@@ -334,7 +334,7 @@
       "groups": ["c"],
       "type": "polygon",
       "points": [[2331, 38], [2331, 43], [2376, 43], [2376, 38]],
-      "trigger": "hideObstacle"
+      "trigger": "hide_obstacle"
     },
     {
       "colour": [231, 231, 231],
@@ -344,7 +344,7 @@
       "groups": ["b"],
       "type": "polygon",
       "points": [[2181, 38], [2181, 43], [2226, 43], [2226, 38]],
-      "trigger": "hideObstacle"
+      "trigger": "hide_obstacle"
     },
     {
       "colour": [128, 188, 84],
@@ -381,7 +381,7 @@
       "groups": ["1", "2"],
       "type": "polygon",
       "points": [[1775, 36], [1775, 41], [1820, 41], [1820, 36]],
-      "trigger": "movePlatformLeft"
+      "trigger": "move_platform_left"
     },
     {
       "colour": [231, 231, 231],
@@ -391,7 +391,7 @@
       "groups": ["d"],
       "type": "polygon",
       "points": [[2481, 38], [2481, 43], [2526, 43], [2526, 38]],
-      "trigger": "hideObstacle"
+      "trigger": "hide_obstacle"
     },
     {
       "colour": [231, 231, 231],
@@ -401,7 +401,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[3914, 38], [3914, 43], [3959, 43], [3959, 38]],
-      "trigger": "hideBeam"
+      "trigger": "hide_beam"
     },
     {
       "colour": [231, 231, 231],
@@ -411,7 +411,7 @@
       "groups": ["a"],
       "type": "polygon",
       "points": [[1410, 38], [1410, 43], [1455, 43], [1455, 38]],
-      "trigger": "hideObstacle"
+      "trigger": "hide_obstacle"
     },
     {
       "colour": [231, 231, 231],
@@ -421,7 +421,7 @@
       "groups": ["1", "2"],
       "type": "polygon",
       "points": [[1775, 36], [1775, 41], [1820, 41], [1820, 36]],
-      "trigger": "movePlatformLeft"
+      "trigger": "move_platform_left"
     },
     {
       "colour": [125, 125, 125],
@@ -502,7 +502,7 @@
       "lethal": false,
       "groups": [],
       "type": "polygon",
-      "checkpoint": {"colour": [204, 50, 200], "xOffset": 0, "yOffset": 30},
+      "checkpoint": {"colour": [204, 50, 200], "dx": 0, "dy": 30},
       "points": [[3066, -299], [3066, -279], [3110, -279], [3110, -299]]
     },
     {
@@ -512,7 +512,7 @@
       "lethal": false,
       "groups": [],
       "type": "polygon",
-      "checkpoint": {"colour": [204, 50, 200], "xOffset": 0, "yOffset": 30},
+      "checkpoint": {"colour": [204, 50, 200], "dx": 0, "dy": 30},
       "points": [[3628, -299], [3628, -279], [3672, -279], [3672, -299]]
     },
     {

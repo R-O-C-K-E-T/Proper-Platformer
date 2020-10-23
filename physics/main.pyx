@@ -96,9 +96,9 @@ cdef class CustomList:
    def __repr__(self):
       return repr(self._list)
 
-cdef Vec2d convertToVec(obj):
+cdef Vec2d convert_to_vec(obj):
    return Vec2d(obj[0],obj[1])
-cdef convertFromVec(Vec2d vec):
+cdef convert_from_vec(Vec2d vec):
    return vec.x, vec.y
 
 cdef class BaseCollider:
@@ -129,105 +129,105 @@ cdef class PolyCollider:
       return self.points
 
    cdef objects.BaseCollider* generate(self, objects.Object *obj):
-      cdef vector[Vec2d] pointsVec
+      cdef vector[Vec2d] points_vec
       for point in self.points:
-         pointsVec.push_back(convertToVec(point))
+         points_vec.push_back(convert_to_vec(point))
       
-      return new objects.PolyCollider(obj, pointsVec)
+      return new objects.PolyCollider(obj, points_vec)
 
 cdef class BaseConstraint:
-   cdef objects.BaseConstraint* generate(self, objects.Object *objA, objects.Object *objB):
+   cdef objects.BaseConstraint* generate(self, objects.Object *obj_a, objects.Object *obj_b):
       raise NotImplemented
 
 
-cdef void apply(PyObject *self, objects.Object* objA, objects.Object* objB):
-   pyObjA = <object>objectMap[objA]
-   pyObjB = <object>objectMap[objB]
-   (<object>self).apply(pyObjA, pyObjB)
+cdef void apply(PyObject *self, objects.Object* obj_a, objects.Object* obj_b):
+   py_obj_a = <object>object_map[obj_a]
+   py_obj_b = <object>object_map[obj_b]
+   (<object>self).apply(py_obj_a, py_obj_b)
 
 cdef class CustomConstraint(BaseConstraint):
-   cdef objects.BaseConstraint* generate(self, objects.Object *objA, objects.Object *objB):
-      return new objects.CustomConstraint[PyObject*](objA, objB, <PyObject*>self, apply)
+   cdef objects.BaseConstraint* generate(self, objects.Object *obj_a, objects.Object *obj_b):
+      return new objects.CustomConstraint[PyObject*](obj_a, obj_b, <PyObject*>self, apply)
 
-   def apply(self, objA, objB):
+   def apply(self, obj_a, obj_b):
       raise NotImplemented
 
 
 cdef class PivotConstraint(BaseConstraint):
-   cdef localA
-   cdef localB
+   cdef local_a
+   cdef local_b
 
    @property
-   def localA(self):
-      return self.localA
+   def local_a(self):
+      return self.local_a
    @property
-   def localB(self):
-      return self.localB
+   def local_b(self):
+      return self.local_b
 
-   def __init__(self, localA, localB):
-      self.localA = localA
-      self.localB = localB
+   def __init__(self, local_a, local_b):
+      self.local_a = local_a
+      self.local_b = local_b
 
-   cdef objects.BaseConstraint* generate(self, objects.Object *objA, objects.Object *objB):
-      return new objects.PivotConstraint(objA, objB, convertToVec(self.localA), convertToVec(self.localB))
+   cdef objects.BaseConstraint* generate(self, objects.Object *obj_a, objects.Object *obj_b):
+      return new objects.PivotConstraint(obj_a, obj_b, convert_to_vec(self.local_a), convert_to_vec(self.local_b))
 
 cdef class FixedConstraint:
-   cdef localA
-   cdef localB
+   cdef local_a
+   cdef local_b
 
-   def __init__(self, localA, localB):
-      self.localA = localA
-      self.localB = localB
+   def __init__(self, local_a, local_b):
+      self.local_a = local_a
+      self.local_b = local_b
 
    @property
-   def localA(self):
-      return self.localA
+   def local_a(self):
+      return self.local_a
    @property
-   def localB(self):
-      return self.localB
+   def local_b(self):
+      return self.local_b
 
-   cdef objects.BaseConstraint* generate(self, objects.Object *objA, objects.Object *objB):
-      return new objects.FixedConstraint(objA, objB, convertToVec(self.localA), convertToVec(self.localB))
+   cdef objects.BaseConstraint* generate(self, objects.Object *obj_a, objects.Object *obj_b):
+      return new objects.FixedConstraint(obj_a, obj_b, convert_to_vec(self.local_a), convert_to_vec(self.local_b))
    
 cdef class SliderConstraint:
-   cdef localA
-   cdef localB
+   cdef local_a
+   cdef local_b
    cdef normal
 
    @property
-   def localA(self):
-      return self.localA
+   def local_a(self):
+      return self.local_a
    @property
-   def localB(self):
-      return self.localB
+   def local_b(self):
+      return self.local_b
    @property
    def normal(self):
       return self.normal
 
-   def __init__(self, localA, localB, normal):
-      self.localA = localA
-      self.localB = localB
+   def __init__(self, local_a, local_b, normal):
+      self.local_a = local_a
+      self.local_b = local_b
       self.normal = normal
 
-   cdef objects.BaseConstraint* generate(self, objects.Object *objA, objects.Object *objB):
-      return new objects.SliderConstraint(objA, objB, convertToVec(self.localA), convertToVec(self.localB), convertToVec(self.normal))
+   cdef objects.BaseConstraint* generate(self, objects.Object *obj_a, objects.Object *obj_b):
+      return new objects.SliderConstraint(obj_a, obj_b, convert_to_vec(self.local_a), convert_to_vec(self.local_b), convert_to_vec(self.normal))
 
-ctypedef PyObject* pyPointer
-ctypedef objects.Object* objPointer
-ctypedef objects.BaseCollider* colliderPointer
-ctypedef objects.BaseConstraint* constraintPointer
+ctypedef PyObject* py_pointer
+ctypedef objects.Object* obj_pointer
+ctypedef objects.BaseCollider* collider_pointer
+ctypedef objects.BaseConstraint* constraint_pointer
 
-cdef unordered_map[objPointer, pyPointer] objectMap
-cdef bool collisionHandler(objects.Object* objA, objects.Object* objB, Vec2d normal, Vec2d localA, Vec2d localB):
-   pyObjA = <object>objectMap[objA]
-   pyObjB = <object>objectMap[objB]
+cdef unordered_map[obj_pointer, py_pointer] object_map
+cdef bool global_collision_handler(objects.Object* obj_a, objects.Object* obj_b, Vec2d normal, Vec2d local_a, Vec2d local_b):
+   py_obj_a = <object>object_map[obj_a]
+   py_obj_b = <object>object_map[obj_b]
    
-   return pyObjA.collide(pyObjB, convertFromVec(normal), convertFromVec(localA), convertFromVec(localB))
+   return py_obj_a.collide(py_obj_b, convert_from_vec(normal), convert_from_vec(local_a), convert_from_vec(local_b))
 
 ctypedef bool (*handler)(objects.Object*, objects.Object*, Vec2d, Vec2d, Vec2d)
 
 cdef class ColliderList(CustomList):
-   cdef unordered_map[pyPointer, colliderPointer] colliderMap
+   cdef unordered_map[py_pointer, collider_pointer] collider_map
    cdef obj
 
    def __init__(self, obj):
@@ -235,24 +235,24 @@ cdef class ColliderList(CustomList):
       self.obj = obj
 
    def _add(self, obj):
-      cdef colliderPointer collider = (<BaseCollider>obj).generate((<Object>self.obj).thisptr)
-      cdef pair[pyPointer, colliderPointer] pair
+      cdef collider_pointer collider = (<BaseCollider>obj).generate((<Object>self.obj).thisptr)
+      cdef pair[py_pointer, collider_pointer] pair
       pair.first = <PyObject*>obj
       pair.second = collider
-      self.colliderMap.insert(pair)
+      self.collider_map.insert(pair)
       (<Object>self.obj).thisptr.updateBounds()
    
    def _remove(self, col):
-      cdef colliderPointer collider = self.colliderMap[<PyObject*>col]
-      self.colliderMap.erase(<PyObject*>col)
-      cdef objPointer obj = (<Object>self.obj).thisptr
+      cdef collider_pointer collider = self.collider_map[<PyObject*>col]
+      self.collider_map.erase(<PyObject*>col)
+      cdef obj_pointer obj = (<Object>self.obj).thisptr
       obj.colliders.erase(remove(obj.colliders.begin(), obj.colliders.end(), collider), obj.colliders.end())
       del collider
    
    def _clear(self):
       for obj in self._list:
-         del self.colliderMap[<PyObject*>obj]
-      self.colliderMap.clear()
+         del self.collider_map[<PyObject*>obj]
+      self.collider_map.clear()
       (<Object>self.obj).thisptr.colliders.clear()
    
    def __getstate__(self):
@@ -268,28 +268,28 @@ cdef class ColliderList(CustomList):
 
 cdef class ConstraintList(CustomList):
    cdef obj
-   cdef unordered_map[pyPointer, constraintPointer] constraintMap
+   cdef unordered_map[py_pointer, constraint_pointer] constraint_map
 
    def __init__(self, obj):
       super().__init__()
       self.obj = obj
 
    def _add(self, constraint):
-      other, pyConstraintDef = constraint
-      cdef constraintPointer cConstraint = (<BaseConstraint>pyConstraintDef).generate((<Object>self.obj).thisptr, (<Object>other).thisptr)
+      other, py_constraint_def = constraint
+      cdef constraint_pointer c_constraint = (<BaseConstraint>py_constraint_def).generate((<Object>self.obj).thisptr, (<Object>other).thisptr)
       
 
-      cdef pair[pyPointer, constraintPointer] pair
+      cdef pair[py_pointer, constraint_pointer] pair
       pair.first = <PyObject*>constraint
-      pair.second = cConstraint
-      self.constraintMap.insert(pair)
+      pair.second = c_constraint
+      self.constraint_map.insert(pair)
    
    def _remove(self, constraint):
       constraint = self._list[self._list.index(constraint)] # Get true version
-      cdef constraintPointer cConstraint = self.constraintMap[<PyObject*>constraint]
-      self.constraintMap.erase(<PyObject*>constraint)
+      cdef constraint_pointer c_constraint = self.constraint_map[<PyObject*>constraint]
+      self.constraint_map.erase(<PyObject*>constraint)
 
-      del cConstraint
+      del c_constraint
    
    def __getstate__(self):
       state = {'obj': self.obj}
@@ -308,36 +308,36 @@ cdef class Object:
 
    def __cinit__(self, *args, **kwargs):
       self.thisptr = new objects.Object(-1,-1,-1,-1,NULL)
-      cdef pair[objPointer,pyPointer] pair
+      cdef pair[obj_pointer,py_pointer] pair
       pair.first = self.thisptr
       pair.second = <PyObject*>self
-      objectMap.insert(pair)
+      object_map.insert(pair)
 
    def __init__(self, double mass, double moment, double restitution, double friction):
-      cdef handler colHandler
+      cdef handler collision_handler
       if hasattr(self, 'collide'):
-         colHandler = collisionHandler
+         collision_handler = global_collision_handler
       else:
-         colHandler = NULL
+         collision_handler = NULL
       
-      #self.thisptr = new objects.Object(mass, moment, restitution, friction, colHandler)
-      self.setMass(mass)
-      self.setMoment(moment)
+      #self.thisptr = new objects.Object(mass, moment, restitution, friction, collision_handler)
+      self.set_mass(mass)
+      self.set_moment(moment)
       self.restitution = restitution
       self.friction = friction
-      self.thisptr.collisionHandler = colHandler
+      self.thisptr.collisionHandler = collision_handler
 
       self.colliders = ColliderList(self)
       self.constraints = ConstraintList(self)
 
    def __dealloc__(self):
-      objectMap.erase(self.thisptr)
+      object_map.erase(self.thisptr)
       del self.thisptr
 
    def __getstate__(self):
       state = {'colliders': self.colliders, 'constraints': self.constraints,
                'mass': self.mass, 'moment': self.moment, 'restitution': self.restitution, 'friction': self.friction,
-               'pos': self.pos, 'vel': self.vel, 'rot': self.rot, 'rotV': self.rotV}
+               'pos': self.pos, 'vel': self.vel, 'rot': self.rot, 'rot_vel': self.rot_vel}
       if hasattr(self, '__dict__'):
          state.update(self.__dict__)
       return state
@@ -346,7 +346,7 @@ cdef class Object:
       self.pos = state['pos']
       self.vel = state['vel']
       self.rot = state['rot']
-      self.rotV = state['rotV']
+      self.rot_vel = state['rot_vel']
 
       colliders = state['colliders']
       constraints = state['constraints']
@@ -355,7 +355,7 @@ cdef class Object:
       restitution = state['restitution']
       friction = state['friction']
 
-      for key in ('colliders', 'pos', 'vel', 'rot', 'rotV', 'mass', 'moment','restitution', 'friction'):
+      for key in ('colliders', 'pos', 'vel', 'rot', 'rot_vel', 'mass', 'moment','restitution', 'friction'):
          del state[key]
       
       if hasattr(self, '__dict__'):
@@ -387,22 +387,22 @@ cdef class Object:
    def friction(self, val):
       self.thisptr.friction = val
 
-   def setMass(self, double mass):
+   def set_mass(self, double mass):
       self.thisptr.setMass(mass)
    @property
    def mass(self):
       return self.thisptr.getMass()
    @property
-   def invMass(self):
+   def inv_mass(self):
       return self.thisptr.getInvMass()
 
-   def setMoment(self, double moment):
+   def set_moment(self, double moment):
       self.thisptr.setMoment(moment)
    @property
    def moment(self):
       return self.thisptr.getMoment()
    @property
-   def invMoment(self):
+   def inv_moment(self):
       return self.thisptr.getInvMoment()
 
    @property
@@ -411,7 +411,7 @@ cdef class Object:
       return pos.x, pos.y
    @pos.setter
    def pos(self, pos):
-      self.thisptr.pos = convertToVec(pos)
+      self.thisptr.pos = convert_to_vec(pos)
       self.thisptr.updateBounds()
    
    @property
@@ -420,7 +420,7 @@ cdef class Object:
       return vel.x, vel.y
    @vel.setter
    def vel(self,vel):
-      self.thisptr.vel = convertToVec(vel)
+      self.thisptr.vel = convert_to_vec(vel)
    
    @property
    def rot(self):
@@ -432,37 +432,37 @@ cdef class Object:
       self.thisptr.updateBounds()
    
    @property
-   def rotV(self):
+   def rot_vel(self):
       return self.thisptr.rotV
-   @rotV.setter
-   def rotV(self,rotV):
-      self.thisptr.rotV = rotV
+   @rot_vel.setter
+   def rot_vel(self,rot_vel):
+      self.thisptr.rotV = rot_vel
    
    @property
    def bounds(self):
       cdef pair[Vec2d, Vec2d] bounds = self.thisptr.getBounds()
-      return convertFromVec(bounds.first), convertFromVec(bounds.second)
+      return convert_from_vec(bounds.first), convert_from_vec(bounds.second)
 
-   def localToGlobal(self, point):
-      return convertFromVec(self.thisptr.localToGlobal(convertToVec(point)))
+   def local_to_global(self, point):
+      return convert_from_vec(self.thisptr.localToGlobal(convert_to_vec(point)))
    
-   def globalToLocal(self, point):
-      return convertFromVec(self.thisptr.globalToLocal(convertToVec(point)))
+   def global_to_local(self, point):
+      return convert_from_vec(self.thisptr.globalToLocal(convert_to_vec(point)))
 
-   def localToGlobalVec(self, vec):
-      return convertFromVec(self.thisptr.localToGlobalVec(convertToVec(vec)))
+   def local_to_global_vec(self, vec):
+      return convert_from_vec(self.thisptr.localToGlobalVec(convert_to_vec(vec)))
    
-   def globalToLocalVec(self, vec):
-      return convertFromVec(self.thisptr.globalToLocalVec(convertToVec(vec)))
+   def global_to_local_vec(self, vec):
+      return convert_from_vec(self.thisptr.globalToLocalVec(convert_to_vec(vec)))
 
 class ContactPoint:
    def __init__(self, *args):
-      self.localA,self.localB,self.globalA,self.globalB,self.normal,self.penetration,self.nImpulseSum,self.tImpulseSum = args
+      self.local_a,self.local_b,self.global_a,self.global_b,self.normal,self.penetration,self.normal_impulse_sum,self.tangent_impulse_sum = args
 
 class ContactConstraint:
-   def __init__(self, objA, objB, points, restitution, friction):
-      self.objA = objA
-      self.objB = objB
+   def __init__(self, obj_a, obj_b, points, restitution, friction):
+      self.obj_a = obj_a
+      self.obj_b = obj_b
       self.points = []
       for point in points:
          self.points.append(ContactPoint(*point))
@@ -476,11 +476,11 @@ cdef class Node:
 
    @property
    def children(self):
-      return createNode(self.world, self.ptr.children[0]), createNode(self.world, self.ptr.children[1])
+      return create_node(self.world, self.ptr.children[0]), create_node(self.world, self.ptr.children[1])
 
    @property
    def bounds(self):
-      return convertFromVec(self.ptr.outer.lower), convertFromVec(self.ptr.outer.upper)
+      return convert_from_vec(self.ptr.outer.lower), convert_from_vec(self.ptr.outer.upper)
 
 cdef class LeafNode:
    cdef aabb.Node *ptr
@@ -492,21 +492,21 @@ cdef class LeafNode:
 
    @property
    def inner_bounds(self):
-      return convertFromVec(self.ptr.inner.lower), convertFromVec(self.ptr.inner.upper)
+      return convert_from_vec(self.ptr.inner.lower), convert_from_vec(self.ptr.inner.upper)
    
    @property
    def bounds(self):
-      return convertFromVec(self.ptr.outer.lower), convertFromVec(self.ptr.outer.upper)
+      return convert_from_vec(self.ptr.outer.lower), convert_from_vec(self.ptr.outer.upper)
 
-cdef createNode(cPhysics.World *world, aabb.Node *cNode):
-   if cNode.isLeaf():
+cdef create_node(cPhysics.World *world, aabb.Node *c_node):
+   if c_node.isLeaf():
       leaf = LeafNode()
-      leaf.ptr = cNode
-      leaf.obj = <object>objectMap[world.nodeMap[cNode]]
+      leaf.ptr = c_node
+      leaf.obj = <object>object_map[world.nodeMap[c_node]]
       return leaf
    else:
       node = Node()
-      node.ptr = cNode
+      node.ptr = c_node
       node.world = world
       return node
 
@@ -520,7 +520,7 @@ cdef class AABBTree:
       if self.world.tree.root == NULL:
          return None
       else:
-         return createNode(self.world, self.world.tree.root)
+         return create_node(self.world, self.world.tree.root)
 
 
 cdef class PyWorld(CustomList):
@@ -531,22 +531,22 @@ cdef class PyWorld(CustomList):
       self._world = new cPhysics.World(Vec2d(0,0), -1, -1, -1, -1, 5)
       self.AABBTree = AABBTree(self)
 
-   def __init__(self, gravity=(0,0.3), baumgarteBias=0.05, solverSteps=4, slopP=0.1, slopR=0.05):
+   def __init__(self, gravity=(0,0.3), baumgarte_bias=0.05, solver_steps=4, slop_p=0.1, slop_r=0.05):
       self.gravity = gravity
-      self.baumgarteBias = baumgarteBias
-      self.solverSteps = solverSteps
-      self.slopP = slopP
-      self.slopR = slopR
+      self.baumgarte_bias = baumgarte_bias
+      self.solver_steps = solver_steps
+      self.slop_p = slop_p
+      self.slop_r = slop_r
 
    def _add(self, obj):
-      self._world.add_object((<Object>obj).thisptr)
+      self._world.addObject((<Object>obj).thisptr)
    def _remove(self, obj):
       self._world.removeObject((<Object>obj).thisptr)
    def _clear(self):
       self._world.clear()
 
-   def update(self, stepSize):
-      self._world.update(stepSize)
+   def update(self, step_size):
+      self._world.update(step_size)
    
    def __deepcopy__(self, memo):
       res = type(self).__new__(type(self))
@@ -559,10 +559,10 @@ cdef class PyWorld(CustomList):
    def __getstate__(self):
       state = {
          'gravity': self.gravity, 
-         'baumgarteBias': self.baumgarteBias, 
-         'solverSteps': self.solverSteps, 
-         'slopP': self.slopP, 
-         'slopR': self.slopR, 
+         'baumgarte_bias': self.baumgarte_bias, 
+         'solver_steps': self.solver_steps, 
+         'slop_p': self.slop_p, 
+         'slop_r': self.slop_r, 
          #'AABBTree': self.AABBTree,
          #'contacts': self.contacts,
       }
@@ -571,50 +571,49 @@ cdef class PyWorld(CustomList):
    
    def __setstate__(self, state):
       self.gravity = state['gravity']
-      self.baumgarteBias = state['baumgarteBias']
-      self.solverSteps = state['solverSteps']
-      self.slopP = state['slopP']
-      self.slopR = state['slopR']
-      #self.AABBTree = state['AABBTree']
+      self.baumgarte_bias = state['baumgarte_bias']
+      self.solver_steps = state['solver_steps']
+      self.slop_p = state['slop_p']
+      self.slop_r = state['slop_r']
       
       #contacts = state['contacts']
 
-      for key in ('gravity', 'baumgarteBias', 'solverSteps', 'slopP', 'slopR'):
+      for key in ('gravity', 'baumgarte_bias', 'solver_steps', 'slop_p', 'slop_r'):
          del state[key]
       super().__setstate__(state)
 
-      #self._setContacts(contacts)
+      #self._set_contacts(contacts)
 
-   '''def _setContacts(self, contacts):
+   '''def _set_contacts(self, contacts):
       self._world.contactConstraints.clear()
-      cdef objects.ContactConstraint cContact
-      cdef objects.ContactPoint cPoint
+      cdef objects.ContactConstraint c_contact
+      cdef objects.ContactPoint c_point
       for contact in contacts:
-         cContact = objects.ContactConstraint((<Object>contact.objA).thisptr, (<Object>contact.objB).thisptr, contact.friction, contact.restitution)
+         c_contact = objects.ContactConstraint((<Object>contact.obj_a).thisptr, (<Object>contact.obj_b).thisptr, contact.friction, contact.restitution)
          for point in contact.points:
-            cPoint.localA  = convertToVec(point.localA)
-            cPoint.localB  = convertToVec(point.localB)
-            cPoint.globalA = convertToVec(point.globalA)
-            cPoint.globalB = convertToVec(point.globalB)
-            cPoint.normal  = convertToVec(point.normal)
-            cPoint.penetration = point.penetration
-            cPoint.nImpulseSum = point.nImpulseSum
-            cPoint.tImpulseSum = point.tImpulseSum
-            cContact.points.push_back(cPoint)
-         self._world.contactConstraints.push_back(cContact)'''
+            c_point.localA  = convert_to_vec(point.local_a)
+            c_point.localB  = convert_to_vec(point.local_b)
+            c_point.globalA = convert_to_vec(point.global_a)
+            c_point.globalB = convert_to_vec(point.global_b)
+            c_point.normal  = convert_to_vec(point.normal)
+            c_point.penetration = point.penetration
+            c_point.nImpulseSum = point.normal_impulse_sum
+            c_point.tImpulseSum = point.tangent_impulse_sum
+            c_contact.points.push_back(c_point)
+         self._world.contactConstraints.push_back(c_contact)'''
 
    @property
-   def baumgarteBias(self):
+   def baumgarte_bias(self):
       return self._world.baumgarteBias
-   @baumgarteBias.setter
-   def baumgarteBias(self, val):
+   @baumgarte_bias.setter
+   def baumgarte_bias(self, val):
       self._world.baumgarteBias = val
 
    @property
-   def solverSteps(self):
+   def solver_steps(self):
       return self._world.solverSteps
-   @solverSteps.setter
-   def solverSteps(self, val):
+   @solver_steps.setter
+   def solver_steps(self, val):
       self._world.solverSteps = val
 
    @property
@@ -626,40 +625,40 @@ cdef class PyWorld(CustomList):
       self._world.gravity.y = val[1]
 
    @property
-   def slopP(self):
+   def slop_p(self):
       return self._world.slopP
-   @slopP.setter
-   def slopP(self, val):
+   @slop_p.setter
+   def slop_p(self, val):
       self._world.slopP = val
 
    @property
-   def slopR(self):
+   def slop_r(self):
       return self._world.slopR
-   @slopR.setter
-   def slopR(self, val):
+   @slop_r.setter
+   def slop_r(self, val):
       self._world.slopR = val
 
    @property
    def contacts(self):
-      cdef objects.ContactPoint cPoint
-      pyContacts = []
+      cdef objects.ContactPoint c_point
+      py_contacts = []
 
 
-      cdef vector[objects.ContactConstraint] cContacts = self._world.getContacts()
-      for cContact in cContacts:
+      cdef vector[objects.ContactConstraint] c_contacts = self._world.getContacts()
+      for c_contact in c_contacts:
          points = []
 
-         for cPoint in cContact.points:
-            points.append((convertFromVec(cPoint.localA),convertFromVec(cPoint.localB),
-                           convertFromVec(cPoint.globalA),convertFromVec(cPoint.globalB),
-                           convertFromVec(cPoint.normal),cPoint.penetration,
-                           cPoint.nImpulseSum, cPoint.tImpulseSum))
+         for c_point in c_contact.points:
+            points.append((convert_from_vec(c_point.localA),convert_from_vec(c_point.localB),
+                           convert_from_vec(c_point.globalA),convert_from_vec(c_point.globalB),
+                           convert_from_vec(c_point.normal),c_point.penetration,
+                           c_point.nImpulseSum, c_point.tImpulseSum))
 
-         objA = <object>objectMap[cContact.objA]
-         objB = <object>objectMap[cContact.objB]
+         obj_a = <object>object_map[c_contact.objA]
+         obj_b = <object>object_map[c_contact.objB]
 
-         pyContacts.append(ContactConstraint(objA, objB, points, cContact.restitution, cContact.friction))
-      return pyContacts
+         py_contacts.append(ContactConstraint(obj_a, obj_b, points, c_contact.restitution, c_contact.friction))
+      return py_contacts
    
    @property
    def AABBTree(self):

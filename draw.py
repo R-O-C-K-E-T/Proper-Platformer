@@ -16,46 +16,46 @@ class Drawer:
         self.players = players.copy()
         self.cameras = []
 
-        self.targetTick = 0
+        self.target_tick = 0
 
-    def load(self, world, objMap): # objMap is between world to self.world
+    def load(self, world, obj_map): # obj_map is between world to self.world
         tick = self.world.tick
         self.toremove = set(self.world)
 
         self.world.tick = world.tick
 
-        for objA, objB in objMap.items():
-            if objB not in self.toremove:
-                self.world.add_object(objB)
+        for obj_a, obj_b in obj_map.items():
+            if obj_b not in self.toremove:
+                self.world.add_object(obj_b)
                 if 'add_object' in self.world.script:
                     try:
-                        self.world.script['add_object'](objB)
+                        self.world.script['add_object'](obj_b)
                     except:
                         print_exc()
             else:
-                self.toremove.remove(objB)
+                self.toremove.remove(obj_b)
 
-            objB.pos = objA.pos
-            objB.vel = objA.vel
-            objB.rot = objA.rot
-            objB.rotV = objA.rotV
+            obj_b.pos = obj_a.pos
+            obj_b.vel = obj_a.vel
+            obj_b.rot = obj_a.rot
+            obj_b.rot_vel = obj_a.rot_vel
 
         for obj in self.toremove:
-            if 'removeObject' in self.world.script:
+            if 'remove_object' in self.world.script:
                 try:
-                    self.world.script['removeObject'](obj)
+                    self.world.script['remove_object'](obj)
                 except:
                     print_exc()
-            self.world.removeObject(obj)
+            self.world.remove_object(obj)
             obj.cleanup()
 
         dt = max(tick - world.tick, 0)
         self.world.update(dt)
 
     def update(self):
-        self.targetTick += 1
+        self.target_tick += 1
 
-        dt = (self.targetTick - self.world.tick) / 15 + 14 / 15
+        dt = (self.target_tick - self.world.tick) / 15 + 14 / 15
         dt = max(dt, 0)
 
         self.world.update(dt)

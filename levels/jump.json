@@ -3,7 +3,7 @@
   "_spawn": [500, -300],
   "constraints": [],
   "spawn": [0, 0],
-  "serverScript": "def load():\n    global unstable\n    unstable = getGroup('Unstable')\n    for obj in unstable:\n        obj.setMass(-1)\n\ndef tick():\n    for obj in unstable:\n        obj.rotV -= obj.rot*0.001\n        obj.rotV *= 0.995\n\n\n\n\n\n\n",
+  "server_script": "def load():\n    global unstable\n    unstable = get_group('Unstable')\n    for obj in unstable:\n        obj.set_mass(-1)\n\ndef tick():\n    for obj in unstable:\n        obj.rot_vel -= obj.rot*0.001\n        obj.rot_vel *= 0.995\n\n\n\n\n\n\n",
   "objects": [
     {
       "colour": [80, 217, 41],
@@ -85,7 +85,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[-254, -367], [-254, -349], [-235, -349], [-235, -367]],
-      "checkpoint": {"colour": [218, 95, 223], "xOffset": 0, "yOffset": 40}
+      "checkpoint": {"colour": [218, 95, 223], "dx": 0, "dy": 40}
     },
     {
       "colour": [120, 185, 223],
@@ -95,7 +95,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[496, -367], [496, -349], [515, -349], [515, -367]],
-      "checkpoint": {"colour": [218, 95, 223], "xOffset": 0, "yOffset": 40}
+      "checkpoint": {"colour": [218, 95, 223], "dx": 0, "dy": 40}
     },
     {
       "colour": [247, 166, 48],

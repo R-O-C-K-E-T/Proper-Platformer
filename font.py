@@ -59,8 +59,8 @@ class SizedDrawnCharacter:
         self.convex_polygons = [np.array(convex) * scale for convex in convex_polygons]
 
 class DrawnCharacter:
-    def __init__(self, loops, unitsPerEm):
-        self.unitsPerEm = unitsPerEm
+    def __init__(self, loops, units_per_em):
+        self.units_per_em = units_per_em
 
         self.area = -sum(sum(util.cross2d(a, b) for a, b in zip(loop, np.roll(loop, 1, 0))) for loop in loops) / 2
         self.offset = -np.array([sum(sum((a[i]+b[i])*util.cross2d(a, b) for a, b in zip(loop, np.roll(loop, 1, 0))) for loop in loops) for i in range(2)]) / (6*self.area)
@@ -72,21 +72,21 @@ class DrawnCharacter:
 
         self.convex_polygons = []
         for loop in loops:
-            if not util.checkWinding(loop):
+            if not util.check_winding(loop):
                 try:
-                    self.convex_polygons += [np.array(decomposition.convertFrom(convex)) - self.offset for convex in decomposition.decompose(decomposition.convertInto(loop))]
+                    self.convex_polygons += [np.array(decomposition.convert_from(convex)) - self.offset for convex in decomposition.decompose(decomposition.convert_into(loop))]
                 except Exception as e:
                     print('fail', loop)
                     raise e
 
     def get_size(self, fontsize):
-        scale = fontsize / self.unitsPerEm
+        scale = fontsize / self.units_per_em
         return SizedDrawnCharacter(self.loops, self.triangles, self.convex_polygons, self.area, self.area_moment, self.offset, scale)
 
 cache = {}
-def getUnsizedCharacter(char):
+def get_unsized_character(char):
     if char not in cache:
-        for font in fonts:
+        for font in FONTS:
             try:
                 glyph_name = font.getBestCmap()[ord(char)]
                 glyph = font.getGlyphSet()[glyph_name]
@@ -102,7 +102,7 @@ def getUnsizedCharacter(char):
         cache[char] = DrawnCharacter([[(x,-y) for x,y in loop] for loop in pen.loops], font['head'].unitsPerEm)
     return cache[char]
 
-def calcWinding(pos, polygon):
+def calc_winding(pos, polygon):
     polygon = np.array(polygon) - pos
 
     test_ray = polygon[0]
@@ -118,20 +118,20 @@ def calcWinding(pos, polygon):
 
     return winding
 
-def isPointInChar(char, size, pos):
-    unsized_character = getUnsizedCharacter(char)
-    pos = np.array(pos) * (unsized_character.unitsPerEm / size)
+def point_in_char(char, size, pos):
+    unsized_character = get_unsized_character(char)
+    pos = np.array(pos) * (unsized_character.units_per_em / size)
 
     pos -= unsized_character.offset
 
-    total_winding = sum(calcWinding(pos, loop) for loop in unsized_character.loops)
+    total_winding = sum(calc_winding(pos, loop) for loop in unsized_character.loops)
 
     return bool(total_winding % 2)
 
-def createCharacter(char, size):
-    return getUnsizedCharacter(char).get_size(size)
+def create_character(char: str, size: float):
+    return get_unsized_character(char).get_size(size)
 
 
 base = join(dirname(__file__), 'fonts')
-fonts = [ttLib.TTFont(join(base, filename)) for filename in ('NotoSans-Regular.ttf', 'NotoSansSymbols-Regular.ttf', 'NotoSansSymbols2-Regular.ttf', 'NotoEmoji-Regular.ttf')]
+FONTS = [ttLib.TTFont(join(base, filename)) for filename in ('NotoSans-Regular.ttf', 'NotoSansSymbols-Regular.ttf', 'NotoSansSymbols2-Regular.ttf', 'NotoEmoji-Regular.ttf')]
 del base

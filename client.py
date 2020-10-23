@@ -1,29 +1,27 @@
-import struct, socket, json, math, time, queue
-import numpy as np
+import json, time, queue
 
-import physics.physics as physics
-import shared, wrapper, packets, networking
+import packets, networking
 from draw import Drawer
 
 class Client:
     def __init__(self, fancy, screen, world, players, connection):
         self.world = world
 
-        copiedWorld = world.copy()
-        copiedWorld.script = {} # No scripts should ever be run on drawer
+        copied_world = world.copy()
+        copied_world.script = {} # No scripts should ever be run on drawer
 
-        copiedWorld.steps = 2
-        self.objectMap = dict(zip(world, copiedWorld))
+        copied_world.steps = 2
+        self.object_map = dict(zip(world, copied_world))
 
-        self.drawer = Drawer(fancy, [self.objectMap[player] for player in players], screen, copiedWorld)
+        self.drawer = Drawer(fancy, [self.object_map[player] for player in players], screen, copied_world)
         self.players = players
 
         self.ids = None
         self.playerIDs = {}
-        self.timeMap = {}
+        self.time_map = {}
 
-        self.lastLoad = 0 # When the drawer world was last updated
-        self.sentTick = 0 # Tick last player action that's been sent
+        self.last_load = 0 # When the drawer world was last updated
+        self.sent_tick = 0 # Tick last player action that's been sent
 
         self.actions = {}
 
@@ -50,15 +48,15 @@ class Client:
             
             if hasattr(packet, 'tick'):
                 if packet.tick < self.world.tick:
-                    if packet.type != networking.NORMAL:
-                        packet.handleClient(self)
+                    if packet.type != networking.PacketType.NORMAL:
+                        packet.handle_client(self)
                 else:
                     dt = packet.tick - self.world.tick
                     while len(received) < dt + 1:
                         received.append([])
                     received[dt].append(packet)
             else:
-                packet.handleClient(self)
+                packet.handle_client(self)
 
         #print(self.world.spawn, self.drawer.world.spawn, self.drawer.cameras[0].player.world.spawn)
         #print(id(self.world), id(self.drawer.world), id(self.drawer.cameras[0].player.world))
@@ -67,34 +65,34 @@ class Client:
             if i != 0:
                 self.tick()
             for packet in packet_group:
-                packet.handleClient(self)
+                packet.handle_client(self)
 
         if self.connection.last_received + 3 < time.time():
             self.connection.send(packets.DisconnectPacket('Timed Out'))
             raise RuntimeError('Server connection timed out')
 
-        if self.world.tick - self.lastLoad > 0:
-            self.drawer.load(self.world, self.objectMap)
-            self.lastLoad = self.world.tick
+        if self.world.tick - self.last_load > 0:
+            self.drawer.load(self.world, self.object_map)
+            self.last_load = self.world.tick
 
         actions = []
         for player in self.drawer.players:
-            player.action = player.getAction()
+            player.action = player.get_action()
             actions.append(player.action)
 
-        targetTick = round(self.drawer.world.tick)
+        target_tick = round(self.drawer.world.tick)
         #print(self.actions)
-        for i in range(max(-float('inf'), self.sentTick+1, *self.actions), targetTick+1):
+        for i in range(max(-float('inf'), self.sent_tick+1, *self.actions), target_tick+1):
             self.actions[i] = actions
 
         if self.ids is not None:
-            while self.sentTick < targetTick:
-                self.sentTick += 1
-                self.timeMap[self.sentTick] = time.time()
-                self.connection.send(packets.UpdateClientPacketServer(self.sentTick, self.actions[self.sentTick]))
+            while self.sent_tick < target_tick:
+                self.sent_tick += 1
+                self.time_map[self.sent_tick] = time.time()
+                self.connection.send(packets.UpdateClientPacketServer(self.sent_tick, self.actions[self.sent_tick]))
 
         self.drawer.update()
-        #self.data.append([time.time(), self.world.tick, self.lastLoad, self.sentTick, self.drawer.world.tick, self.drawer.targetTick])
+        #self.data.append([time.time(), self.world.tick, self.last_load, self.sent_tick, self.drawer.world.tick, self.drawer.target_tick])
 
     def handle_packet(self, packet):
         self.packet_queue.put(packet)

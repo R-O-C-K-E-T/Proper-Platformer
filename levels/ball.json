@@ -3,7 +3,7 @@
   "_spawn": [1950, 0],
   "constraints": [],
   "spawn": [0, 0],
-  "serverScript": "def handler(self, other, normal, localA, localB):\n   for ball in getGroup(*self.groups):\n      ball.reset()\n\n",
+  "server_script": "def handler(self, other, normal, local_a, local_b):\n   for ball in get_group(*self.groups):\n      ball.reset()\n\n",
   "objects": [
     {
       "colour": [217, 0, 0],
@@ -136,7 +136,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[1881, -90], [1881, -72], [1900, -72], [1900, -90]],
-      "checkpoint": {"colour": [218, 95, 223], "xOffset": 0, "yOffset": 40}
+      "checkpoint": {"colour": [218, 95, 223], "dx": 0, "dy": 40}
     },
     {
       "colour": [80, 217, 41],
@@ -275,7 +275,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[3505, -17], [3505, 1], [3524, 1], [3524, -17]],
-      "checkpoint": {"colour": [218, 95, 223], "xOffset": 0, "yOffset": 40}
+      "checkpoint": {"colour": [218, 95, 223], "dx": 0, "dy": 40}
     },
     {
       "colour": [80, 217, 41],
@@ -294,7 +294,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[5191, 440], [5191, 458], [5210, 458], [5210, 440]],
-      "checkpoint": {"colour": [218, 95, 223], "xOffset": 0, "yOffset": 40}
+      "checkpoint": {"colour": [218, 95, 223], "dx": 0, "dy": 40}
     },
     {
       "colour": [80, 217, 41],

@@ -1,22 +1,20 @@
 #!/usr/bin/python3
-import json, os.path, pygame, subprocess, sys, signal
-import pygame.locals
+import json, os.path, pygame, subprocess, sys
+import pygame.locals as pg_locals
 from functools import partial
 import numpy as np
 import tkinter as tk
 from glob import glob
 
-from tkinter import filedialog
 from tkinter import colorchooser
-from tkinter import ttk
 from tkinter import messagebox
 from tkinter.simpledialog import askinteger
 
 import util, font
 
-key_map = dict((getattr(pygame.locals, name), name[2:]) for name in dir(pygame.locals) if name.startswith('K_'))
+key_map = dict((getattr(pg_locals, name), name[2:]) for name in dir(pg_locals) if name.startswith('K_'))
 
-def createPreview(filename):
+def create_preview(filename):
     with open(filename) as f:
         level = json.load(f)
     scale = 1/10
@@ -35,7 +33,7 @@ def createPreview(filename):
             points = [((pos - centre) * scale).astype(int) for pos in obj['points']]
             pygame.draw.polygon(screen, colour, points)
         elif obj['type'] == 'text':
-            drawn = font.createCharacter(obj['char'], obj['size'] * scale)
+            drawn = font.create_character(obj['char'], obj['size'] * scale)
 
             offset = drawn.offset + (obj['pos'] - centre) * scale
             for tri in drawn.triangles:
@@ -45,7 +43,7 @@ def createPreview(filename):
     for x in range(size[0]):
         for y in range(size[1]):
             colour = screen.get_at((x,y))[:3]
-            image.put(util.convertColour(colour), to=(x,y))
+            image.put(util.convert_colour(colour), to=(x,y))
     return image
 
 
@@ -84,7 +82,7 @@ class SelectableFrame(tk.Frame):
         self.bind('<Button-1>', self.onclick)
         self.bind('<ButtonRelease-1>', self.onrelease)
 
-    def bindChildren(self):
+    def bind_children(self):
         def bind(widget):
             widget.bind('<Button-1>', self.onclick)
             widget.bind('<ButtonRelease-1>', self.onrelease)
@@ -100,9 +98,9 @@ class SelectableFrame(tk.Frame):
         self['relief'] = 'raised'
 
 class LevelSelectorElement(SelectableFrame):
-    def __init__(self, master, filename, setSelection):
+    def __init__(self, master, filename, set_selection):
         super().__init__(master, width=100, command=self.select)
-        self.setSelection = setSelection
+        self.set_selection = set_selection
         self.filename = filename
         name, _ = os.path.splitext(os.path.basename(filename))
         self.imgLabel = tk.Label(self, image=BLANK_PHOTO)
@@ -110,18 +108,18 @@ class LevelSelectorElement(SelectableFrame):
         self.label = tk.Label(self, text=name)
         self.label.pack()
 
-        self.bindChildren()
+        self.bind_children()
 
     def select(self):
         self['bg'] = self.label['bg'] = '#2222ff'
-        self.setSelection(self)
+        self.set_selection(self)
 
     def unselect(self):
-        self['bg'] = self.label['bg'] = util.convertColour((240, 240, 237))
+        self['bg'] = self.label['bg'] = util.convert_colour((240, 240, 237))
 
-    def loadPreview(self):
+    def load_preview(self):
         try:
-            self.image = createPreview(self.filename)
+            self.image = create_preview(self.filename)
             self.imgLabel['image'] = self.image
         except:
             pass
@@ -152,7 +150,7 @@ class LevelSelector(tk.Frame):
             x = i % 3
             y = i // 3
 
-            widget = LevelSelectorElement(self.items, filename, self.setSelection)
+            widget = LevelSelectorElement(self.items, filename, self.set_selection)
             widget.grid(column=x, row=y, sticky='nsew', padx=1, pady=1)
             self.selectors.append(widget)
 
@@ -161,23 +159,23 @@ class LevelSelector(tk.Frame):
         self.selectors[0].select()
 
         iterator = iter(self.selectors)
-        def showNext():
+        def show_next():
             try:
                 widget = next(iterator)
             except StopIteration:
                 return
-            widget.loadPreview()
-            self.after_idle(showNext)
+            widget.load_preview()
+            self.after_idle(show_next)
 
         root.update()
         root.update_idletasks()
 
         if immediate:
-            self.after_idle(showNext)
+            self.after_idle(show_next)
         else:
-            self.after(500, showNext)
+            self.after(500, show_next)
 
-    def setSelection(self, widget):
+    def set_selection(self, widget):
         if self.selection is not None and self.selection is not widget:
             self.selection.unselect()
         self.selection = widget
@@ -197,29 +195,29 @@ class CreateGame(Menu):
         footer = tk.Frame(self)
         footer.pack()
 
-        tk.Button(footer, text='Local Game', command=self.playLocal).pack(side='left')
-        tk.Button(footer, text='Online Game', command=self.playOnline).pack(side='left')
+        tk.Button(footer, text='Local Game', command=self.play_local).pack(side='left')
+        tk.Button(footer, text='Online Game', command=self.play_online).pack(side='left')
 
-        tk.Button(self, text='Back', command=popStack).pack()
+        tk.Button(self, text='Back', command=pop_stack).pack()
 
-    def playLocal(self):
+    def play_local(self):
         filename = self.selector.selection.filename
 
         root.withdraw()
         subprocess.run([sys.executable, 'main.py', 'local', filename])
         root.deiconify()
 
-    def playOnline(self):
+    def play_online(self):
         filename = self.selector.selection.filename
         port = askinteger('Port Selection', 'Enter Port', minvalue=0)
         if port is None:
             return
         root.withdraw()
 
-        serverProc = subprocess.Popen([sys.executable, 'main.py', 'server', filename, str(port)])
+        server_process = subprocess.Popen([sys.executable, 'main.py', 'server', filename, str(port)])
         subprocess.run([sys.executable, 'main.py', 'client', 'localhost', str(port)])
-        serverProc.terminate() # TODO Make more graceful
-        #serverProc.send_signal(signal.SIGQUIT)
+        server_process.terminate() # TODO Make more graceful
+        #server_process.send_signal(signal.SIGQUIT)
 
         root.deiconify()
 
@@ -239,7 +237,7 @@ class JoinGame(Menu):
 
         footer = tk.Frame(self)
         tk.Button(footer, text='Join', command=self.join).grid(row=0,column=0, sticky='e')
-        tk.Button(footer, text='Back', command=popStack).grid(row=0,column=1, sticky='w')
+        tk.Button(footer, text='Back', command=pop_stack).grid(row=0,column=1, sticky='w')
         footer.grid(row=3,column=0,columnspan=2)
 
     def join(self):
@@ -268,7 +266,7 @@ class LevelEditor(Menu):
         self.selector.pack()
         footer = tk.Frame(self)
         tk.Button(footer, text='Edit', command=self.edit).grid(row=0,column=0)
-        tk.Button(footer, text='Back', command=popStack).grid(row=0,column=1)
+        tk.Button(footer, text='Back', command=pop_stack).grid(row=0,column=1)
         footer.pack()
 
     def edit(self):
@@ -278,7 +276,7 @@ class LevelEditor(Menu):
         subprocess.run([sys.executable, 'editor.py', filename])
         root.deiconify()
 
-def getKey():
+def get_key():
     screen = pygame.display.set_mode((200,100))
     pygame.display.set_caption('Press Key')
     screen.fill((255,255,255))
@@ -290,9 +288,9 @@ def getKey():
     try:
         while True:
             for event in pygame.event.get():
-                if event.type == pygame.locals.QUIT:
+                if event.type == pg_locals.QUIT:
                     return None
-                elif event.type == pygame.locals.KEYDOWN:
+                elif event.type == pg_locals.KEYDOWN:
                     return event.key
             pygame.display.update()
             clock.tick(60)
@@ -309,16 +307,15 @@ class EditPlayer(Menu):
         tk.Label(self, text=('Create' if new else 'Modify')+' Player', font=h2).grid(row=0,column=0,columnspan=2)
 
         self.callback = callback
-
         self.active = player['active']
 
         tk.Label(self, text='Name:').grid(row=1, column=0)
-        self.nameVar = tk.StringVar(value=player['name'])
-        tk.Entry(self, textvariable=self.nameVar, width=15).grid(row=1,column=1)
+        self.name_var = tk.StringVar(value=player['name'])
+        tk.Entry(self, textvariable=self.name_var, width=15).grid(row=1,column=1)
 
         tk.Label(self, text='Colour:').grid(row=2,column=0)
-        self.colourButton = tk.Button(self, command=self.updateColour, bg=util.convertColour(player['colour']), activebackground=util.convertColour((np.array(player['colour']) * 0.9).astype(int)))
-        self.colourButton.grid(row=2,column=1, sticky='ew')
+        self.colour_button = tk.Button(self, command=self.update_colour, bg=util.convert_colour(player['colour']), activebackground=util.convert_colour((np.array(player['colour']) * 0.9).astype(int)))
+        self.colour_button.grid(row=2,column=1, sticky='ew')
 
         keys = tk.Frame(self)
         for i in range(3):
@@ -326,7 +323,7 @@ class EditPlayer(Menu):
         for i in range(2):
             keys.grid_rowconfigure(i, minsize=40)
 
-        self.buttons = [tk.Button(keys,command=partial(self.updateKey, i)) for i in range(4)]
+        self.buttons = [tk.Button(keys,command=partial(self.update_key, i)) for i in range(4)]
         self.buttons[0].grid(row=1,column=2,sticky='nsew')
         self.buttons[2].grid(row=1,column=1,sticky='nsew')
         self.buttons[1].grid(row=1,column=0,sticky='nsew')
@@ -336,7 +333,7 @@ class EditPlayer(Menu):
 
         for key, button in zip(self.controls, self.buttons):
             try:
-                code = getattr(pygame.locals, 'K_' + key)
+                code = getattr(pg_locals, 'K_' + key)
                 button['text'] = pygame.key.name(code)
             except:
                 button['text'] = 'Unknown Key'
@@ -344,34 +341,34 @@ class EditPlayer(Menu):
         keys.grid(row=3,column=0,columnspan=2)
 
         footer = tk.Frame(self)
-        tk.Button(footer, text='Save', command=self.savePlayer).pack(side='left')
-        tk.Button(footer, text='Cancel', command=popStack).pack(side='left')
+        tk.Button(footer, text='Save', command=self.save_player).pack(side='left')
+        tk.Button(footer, text='Cancel', command=pop_stack).pack(side='left')
         footer.grid(row=4,column=0,columnspan=2)
 
-    def updateKey(self, index):
-        val = getKey()
+    def update_key(self, index):
+        val = get_key()
         if val is None:
             return
         self.controls[index] = key_map[val]
         self.buttons[index]['text'] = pygame.key.name(val)
 
-    def updateColour(self):
-        res, _ = colorchooser.askcolor(self.colourButton['bg'])
+    def update_colour(self):
+        res, _ = colorchooser.askcolor(self.colour_button['bg'])
         if res is None:
             return
         res = np.array(res)
-        self.colourButton['bg'] = util.convertColour(res.astype(int))
-        self.colourButton['activebackground'] = util.convertColour((res * 0.9).astype(int))
+        self.colour_button['bg'] = util.convert_colour(res.astype(int))
+        self.colour_button['activebackground'] = util.convert_colour((res * 0.9).astype(int))
 
-    def savePlayer(self):
+    def save_player(self):
         player = {}
         player['active'] = self.active
-        player['name'] = self.nameVar.get()
-        col = self.colourButton['bg']
+        player['name'] = self.name_var.get()
+        col = self.colour_button['bg']
         player['colour'] = [int(col[i:i+2],16) for i in range(1,7,2)]
         player['controls'] = self.controls
         self.callback(player)
-        popStack()
+        pop_stack()
 
 class Options(Menu):
     def __init__(self):
@@ -380,19 +377,19 @@ class Options(Menu):
 
         tk.Label(self, text='Profile Editor', font=h2).grid(row=0,column=0,columnspan=2)
 
-        scrolledList = ScrolledList(self, 250, 250, borderwidth=1, relief='sunken')
-        scrolledList.grid(row=1,column=0,columnspan=2, padx=1)
-        self.list = tk.Frame(scrolledList)
+        scrolled_list = ScrolledList(self, 250, 250, borderwidth=1, relief='sunken')
+        scrolled_list.grid(row=1,column=0,columnspan=2, padx=1)
+        self.list = tk.Frame(scrolled_list)
         self.list.columnconfigure(0, minsize=250)
         #self.list['bg'] = 'yellow'
-        scrolledList.insert(self.list, fill='x')
-        scrolledList.insert(tk.Button(scrolledList, text='New', command=self.addPlayer))
+        scrolled_list.insert(self.list, fill='x')
+        scrolled_list.insert(tk.Button(scrolled_list, text='New', command=self.add_player))
         with open('settings.json') as f:
             settings = json.load(f)
 
         self.players = settings.get('players', [])
         for i, player in enumerate(self.players):
-            entry = self.generateListEntry(player)
+            entry = self.generate_list_entry(player)
             entry.grid(row=i, column=0, sticky='ew', pady=1, padx=1)
 
         tk.Label(self, text='Multisamples:').grid(row=2,column=0, sticky='e')
@@ -405,10 +402,10 @@ class Options(Menu):
         tk.Label(self, text='Fancy:').grid(row=3, column=0, sticky='e')
         tk.Checkbutton(self, variable=self.fancy_var).grid(row=3, column=1, sticky='w')
 
-        tk.Button(self, text='Save', command=self.updateProfiles).grid(row=4,column=0)
-        tk.Button(self, text='Exit', command=popStack).grid(row=4,column=1)
+        tk.Button(self, text='Save', command=self.update_profiles).grid(row=4,column=0)
+        tk.Button(self, text='Exit', command=pop_stack).grid(row=4,column=1)
 
-    def generateListEntry(self, player):
+    def generate_list_entry(self, player):
         var = tk.StringVar(value=int(player['active']))
         def onchange(*_):
             value = bool(int(var.get()))
@@ -419,38 +416,38 @@ class Options(Menu):
         entry = tk.Frame(self.list, borderwidth=1, relief='raised')
         #entry['bg'] = 'green'
         tk.Label(entry, text=player['name'], anchor='w', width=10, font=body).pack(side='left')
-        tk.Frame(entry, width=25, height=15, bg=util.convertColour(player['colour']), highlightthickness=1, highlightbackground='black').pack(side='left')
+        tk.Frame(entry, width=25, height=15, bg=util.convert_colour(player['colour']), highlightthickness=1, highlightbackground='black').pack(side='left')
         tk.Checkbutton(entry, variable=var).pack(side='left')
-        tk.Button(entry, text='Del', command=partial(self.removePlayer, player), padx=3, pady=3).pack(side='right', padx=2, pady=2)
-        tk.Button(entry, text='Edit', command=partial(self.modifyEntry, player), padx=3, pady=3).pack(side='right', padx=2, pady=2)
+        tk.Button(entry, text='Del', command=partial(self.remove_player, player), padx=3, pady=3).pack(side='right', padx=2, pady=2)
+        tk.Button(entry, text='Edit', command=partial(self.modify_entry, player), padx=3, pady=3).pack(side='right', padx=2, pady=2)
         return entry
 
-    def addPlayer(self):
+    def add_player(self):
         def apply(player):
             self.players.append(player)
             _, i = self.list.grid_size()
-            self.generateListEntry(player).grid(row=i, column=0, sticky='ew', padx=1, pady=1)
+            self.generate_list_entry(player).grid(row=i, column=0, sticky='ew', padx=1, pady=1)
 
-        pushStack(EditPlayer(apply))
+        push_stack(EditPlayer(apply))
 
-    def removePlayer(self, oldPlayer):
-        index = self.players.index(oldPlayer)
+    def remove_player(self, old_plyaer):
+        index = self.players.index(old_plyaer)
         self.players.pop(index)
         widget = self.list.grid_slaves(row=index, column=0)[0]
         for i in range(index+1, len(self.players)):
             self.list.grid_slaves(row=i, column=0)[0].grid(row=i-1, column=0)
         widget.grid_forget()
 
-    def modifyEntry(self, oldPlayer):
+    def modify_entry(self, old_plyaer):
         def apply(player):
-            i = self.players.index(oldPlayer)
+            i = self.players.index(old_plyaer)
             self.players[i] = player
             self.list.grid_slaves(row=i, column=0)[0].grid_forget()
-            self.generateListEntry(player).grid(row=i, column=0, sticky='ew', padx=1, pady=1)
+            self.generate_list_entry(player).grid(row=i, column=0, sticky='ew', padx=1, pady=1)
 
-        pushStack(EditPlayer(apply, oldPlayer))
+        push_stack(EditPlayer(apply, old_plyaer))
 
-    def updateProfiles(self):
+    def update_profiles(self):
         with open('settings.json') as f:
             settings = json.load(f)
         settings['players'] = self.players
@@ -463,7 +460,7 @@ class Options(Menu):
         settings['fancy'] = self.fancy_var.get()
         with open('settings.json', 'w') as f:
             json.dump(settings, f)
-        popStack()
+        pop_stack()
 
 class MainMenu(Menu):
     def __init__(self):
@@ -477,17 +474,17 @@ class MainMenu(Menu):
         ]
         for label, clz in entries:
             widget = clz()
-            tk.Button(self, text=label, width=15, font=body, command=partial(pushStack, widget)).pack()
+            tk.Button(self, text=label, width=15, font=body, command=partial(push_stack, widget)).pack()
 
 
-def pushStack(widget):
+def push_stack(widget):
     widget.update()
     width, height = widget.winfo_reqwidth(), widget.winfo_reqheight()
     widget.place(width=width,height=height)
     root.geometry('{}x{}'.format(width,height))
     stack.append(widget)
 
-def popStack():
+def pop_stack():
     widget = stack.pop()
     widget.place_forget()
 
@@ -513,6 +510,6 @@ if __name__ == '__main__':
     BLANK_PHOTO.put(('{' + 'white '*140 + '} ')*100)
 
     menu = MainMenu()
-    pushStack(menu)
+    push_stack(menu)
 
     root.mainloop()

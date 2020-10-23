@@ -1,44 +1,63 @@
-import socket, struct, operator, time, zlib, random, math, threading
+from __future__ import annotations
+from typing import *
+
+import socket, struct, time, zlib, random, math, threading, enum
 import numpy as np
 
 DEBUG = False
 
-NORMAL = 0
-RELIABLE = 1
-BIG = 2
+class PacketType(enum.Enum):
+    NORMAL = 0
+    RELIABLE = 1
+    BIG = 2
+    INITIAL = 3
 
 MTU = 1200
 
-def apply_crc(protocol_id, data):
+class Packet(Protocol):
+    type: PacketType
+
+    def read(self, buf: bytes) -> None:
+        ...
+
+    def write(self) -> bytes:
+        ...
+
+NetProtocol = Union[Tuple[bytes, List[Type[Packet]]], Tuple[bytes, List[Type[Packet]], List[Type[Packet]]]]
+NetAddr = Tuple[str, int]
+SocketType = socket.socket
+
+def apply_crc(protocol_id: bytes, data: bytes) -> bytes:
     return struct.pack('!I', zlib.crc32(protocol_id + data)) + data
-def check_crc(protocol_id, data):
+
+def check_crc(protocol_id: bytes, data: bytes) -> bool:
     return data[:4] == struct.pack('!I', zlib.crc32(protocol_id + data[4:]))
 
 class SequenceNumber:
-    def __init__(self, size, initial=0):
-        assert type(size) == int and size > 0
+    def __init__(self, size: int, initial: Union[int, bytes]=0):
+        assert size > 0
 
         self.size = size
         self.maximum = 1 << size
 
-        if type(initial) == bytes:
+        if isinstance(initial, bytes):
             if size > 32:
                 raise NotImplementedError
             elif size > 16:
-                self.value, = struct.unpack('!I', initial) % self.maximum
+                self.value, = struct.unpack('!I', initial)[0] % self.maximum
             elif size > 8:
-                self.value = struct.unpack('!H', initial) % self.maximum
+                self.value = struct.unpack('!H', initial)[0] % self.maximum
             else:
-                self.value = struct.unpack('!B', initial) % self.maximum
-        elif type(initial) == int:
+                self.value = struct.unpack('!B', initial)[0] % self.maximum
+        elif isinstance(initial, int):
             self.value = initial % self.maximum
         else:
             raise TypeError('Invalid initial type')
 
-    def increment(self, amount=1):
+    def increment(self, amount: int=1) -> SequenceNumber:
         return SequenceNumber(self.size, self.value + amount)
 
-    def write(self):
+    def write(self) -> bytes:
         if self.size > 32:
             raise NotImplementedError
         elif self.size > 16:
@@ -56,37 +75,38 @@ class SequenceNumber:
     def __hash__(self):
         return hash(self.value)
 
-    def _richcmp(op):
-        def cmp(self, other):
-            if not isinstance(other, SequenceNumber):
-                return NotImplemented
-            if self.size != other.size:
-                return NotImplemented
+    def richcmp(self, other: Any) -> Union[int, Type[NotImplemented]]:
+        if not isinstance(other, SequenceNumber):
+            return NotImplemented
+        if self.size != other.size:
+            return NotImplemented
 
-            a = self.value
-            b = other.value
+        a = self.value
+        b = other.value
 
-            if a == b:
-                val = 0
-            else:
-                val = 1 if ((a > b) and ((a - b) % self.maximum <= (self.maximum >> 1))) or ((a < b) and ((b - a) % self.maximum > (self.maximum >> 1))) else -1
-            return op(val, 0)
-        return cmp
+        if a == b:
+            return 0
+        elif ((a > b) and ((a - b) % self.maximum <= (self.maximum >> 1))) or ((a < b) and ((b - a) % self.maximum > (self.maximum >> 1))):
+            return 1
+        else:
+            return -1
 
-    __lt__ = _richcmp(operator.lt)
-    __gt__ = _richcmp(operator.gt)
-    __le__ = _richcmp(operator.le)
-    __ge__ = _richcmp(operator.ge)
-    __eq__ = _richcmp(operator.eq)
-    __ne__ = _richcmp(operator.ne)
+    __lt__ = lambda self, other: self.richcmp(other) <  0
+    __gt__ = lambda self, other: self.richcmp(other) >  0
+    __le__ = lambda self, other: self.richcmp(other) <= 0
+    __ge__ = lambda self, other: self.richcmp(other) >= 0
+    __eq__ = lambda self, other: self.richcmp(other) == 0
+    __ne__ = lambda self, other: self.richcmp(other) != 0
 
 
-def make_client_connection(host, port, protocol, timeout=3, payload=None, threaded=False):
+def make_client_connection(host: str, port: int, protocol: NetProtocol, timeout: float=3, payload: Optional[Packet]=None, threaded: bool=False) -> BaseConnection:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(timeout)
     sock.connect((host, port))
 
-    protocol_id, sending_types = protocol[:2]
+    # Gets the typing to work
+    protocol_id = protocol[0]
+    sending_types = protocol[1]
 
     salt = random.randrange(1<<32)
     init_packet = b'CONN' + struct.pack('!I', salt)
@@ -137,7 +157,7 @@ def make_client_connection(host, port, protocol, timeout=3, payload=None, thread
         return Connection(protocol, salt, sock)
 
 class BaseServerConnectionHandler:
-    def __init__(self, host, port, protocol):
+    def __init__(self, host: str, port: int, protocol: NetProtocol):
         assert len(protocol) in (2,3)
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind((host, port))
@@ -145,12 +165,12 @@ class BaseServerConnectionHandler:
         self.socket = sock
         self.protocol = protocol
 
-        self.pending = []
-        self.connections = {}
+        self.pending: List[Tuple[NetAddr, bytes, bytes]] = []
+        self.connections: Dict[NetAddr, BaseConnection] = {}
 
-    def handle_connection_packet(self, addr, data):
+    def handle_connection_packet(self, addr: NetAddr, data: bytes):
         protocol_id = self.protocol[0]
-        receiving_types = self.protocol[-1]
+        receiving_types = cast(List[Type[Packet]], self.protocol[-1])
 
         if len(data) < MTU:
             if DEBUG:
@@ -206,8 +226,8 @@ class BaseServerConnectionHandler:
             self.connections[addr] = connection
             self.new_connection(connection, payload)
 
-    def sendall(self, packet):
-        if packet.type == NORMAL:
+    def sendall(self, packet: Packet):
+        if packet.type == PacketType.NORMAL:
             sending_types = self.protocol[1]
             type_id = sending_types.index(type(packet)) + 1
             data = bytes([type_id]) + packet.write()
@@ -223,19 +243,19 @@ class BaseServerConnectionHandler:
             for connection in self.connections.values():
                 connection.send(packet)
 
-    def disconnect(self, addr):
+    def disconnect(self, addr: NetAddr):
         del self.connections[addr]
 
-    def new_connection(self, connection, payload):
+    def new_connection(self, connection: BaseConnection, payload: Optional[Packet]):
         pass
 
 class ServerConnectionHandler(BaseServerConnectionHandler):
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, host: str, port: int, protocol: NetProtocol):
+        super().__init__(host, port, protocol)
         self.socket.setblocking(False)
 
     def poll(self):
-        packets = {}
+        packets: Dict[BaseConnection, List[Packet]] = {}
         while True:
             try:
                 data, addr = self.socket.recvfrom(MTU)
@@ -244,20 +264,19 @@ class ServerConnectionHandler(BaseServerConnectionHandler):
 
             if addr in self.connections:
                 connection = self.connections[addr]
-                packet = connection.receive(data)
-                if packet is not None:
-                    packets.setdefault(connection, []).append(packet)
+                packet_list = packets.setdefault(connection, []) 
+                packet_list += connection.receive(data)
             else:
                 self.handle_connection_packet(addr, data)
 
         for connection in self.connections.values():
             packets.setdefault(connection, [])
-            packets[connection] += connection.update()
+            connection.update()
         return packets
 
 class ThreadedServerConnectionHandler(BaseServerConnectionHandler):
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, host: str, port: int, protocol: NetProtocol):
+        super().__init__(host, port, protocol)
 
         self.lock = threading.RLock()
         
@@ -280,7 +299,7 @@ class ThreadedServerConnectionHandler(BaseServerConnectionHandler):
                 else:
                     self.handle_connection_packet(addr, data)
 
-    def start(self, packet_handler):
+    def start(self, packet_handler: Callable[[BaseConnection, Packet], None]):
         self._packet_handler = packet_handler
         self.thread.start()
 
@@ -292,7 +311,7 @@ class ThreadedServerConnectionHandler(BaseServerConnectionHandler):
 
         self.socket.close()
 
-    def sendall(self, packet):
+    def sendall(self, packet: Packet):
         with self.lock:
             super().sendall(packet)
 
@@ -302,11 +321,11 @@ class ThreadedServerConnectionHandler(BaseServerConnectionHandler):
                 connection.update()
 
 class ChunkSender:
-    def __init__(self, chunk_id, packet, conn):
+    def __init__(self, chunk_id: int, packet: Packet, conn: BaseConnection):
         self.conn = conn
 
         self.packet_timeout = MTU / (256*1024)
-        self.timeout = None
+        self.timeout: Optional[float] = None
 
         type_id = conn.sending_types.index(type(packet)) + 1
         self.chunk_id = chunk_id
@@ -325,8 +344,8 @@ class ChunkSender:
             max_size = slice_size * 256
             raise ValueError('Payload too large: {}>{}'.format(payload, max_size))
 
-        self.send_queue = []
-        self.slices = []
+        self.send_queue: List[int] = []
+        self.slices: List[bytes] = []
         for i in range(256):
             slice_data = payload[i*slice_size:(i+1)*slice_size]
             if len(slice_data) == 0:
@@ -340,7 +359,7 @@ class ChunkSender:
         self.send_queue = self.send_queue[128:] + self.send_queue[:128]
         self.timeout = time.time() + self.packet_timeout * 5
 
-    def handle_ack(self, ack):
+    def handle_ack(self, ack: bytes):
         bitfield = np.unpackbits(np.array(list(ack), np.uint8)).tolist()
         for i, value in enumerate(bitfield):
             if value:
@@ -365,21 +384,21 @@ class ChunkSender:
 
 
 class ChunkReceiver:
-    def __init__(self, packet_type, conn):
+    def __init__(self, packet_type: Type[Packet], conn: BaseConnection):
         self.conn = conn
         self.packet_type = packet_type
 
         self.done = False
 
-        self.chunk_id = None
-        self.slices = None
-        self.remaining = None
+        self.chunk_id: Optional[int] = None
+        self.slices: Optional[List[Optional[bytes]]] = None
+        self.remaining: Optional[int] = None
 
-    def receive(self, packet_type, data):
+    def receive(self, packet_type: Type[Packet], data: bytes):
         chunk_id, size, slice_id = data[:3]
         if self.chunk_id is None:
             self.chunk_id = chunk_id
-            self.slices = [None] * size
+            self.slices = cast(List[Optional[bytes]], [None] * size)
             self.remaining = size
         else:
             if chunk_id != self.chunk_id:
@@ -388,7 +407,7 @@ class ChunkReceiver:
         if packet_type != self.packet_type:
             print('Received slice packet with invalid packet type')
             return
-        if size != len(self.slices):
+        if size != len(cast(List[Optional[bytes]], self.slices)):
             print('Received slice packet with wrong size field')
             return
 
@@ -399,40 +418,40 @@ class ChunkReceiver:
             if self.remaining == 0:
                 self.done = True
                 packet = self.packet_type()
-                packet.read(b''.join(self.slices))
+                packet.read(b''.join(cast(List[bytes], self.slices)))
         self.send_ack()
         return packet
 
     def send_ack(self):
         data = [False] * 256
-        for i, val in enumerate(self.slices):
+        for i, val in enumerate(cast(List[Optional[bytes]], self.slices)):
             if val is not None:
                 data[i] = True
         bitfield = bytes(np.packbits(data))
-        self.conn.send_raw(bytes([0, self.chunk_id]) + bitfield)
+        self.conn.send_raw(bytes([0, cast(int, self.chunk_id)]) + bitfield)
 
-
-class PacketCache:
-    def __init__(self, size):
+T = TypeVar('T')
+class PacketCache(Generic[T]):
+    def __init__(self, size: int):
         self.size = size
-        self.entries = [(None,None)] * size
+        self.entries: List[Union[Tuple[None, None], Tuple[SequenceNumber, T]]] = cast(List[Union[Tuple[None, None], Tuple[SequenceNumber, T]]], [(None,None)] * size)
 
-    def __getitem__(self, sequence_num):
+    def __getitem__(self, sequence_num: SequenceNumber) -> Optional[T]:
         stored_num, packet_data = self.entries[sequence_num.value % self.size]
         if stored_num == sequence_num:
             return packet_data
         else:
             return None
 
-    def __setitem__(self, sequence_num, packet_data):
+    def __setitem__(self, sequence_num: SequenceNumber, packet_data: T):
         assert packet_data is not None
         self.entries[sequence_num.value % self.size] = sequence_num, packet_data
 
-    def __delitem__(self, sequence_num):
+    def __delitem__(self, sequence_num: SequenceNumber):
         if sequence_num in self:
             self.entries[sequence_num.value % self.size] = None, None
 
-    def __contains__(self, sequence_num):
+    def __contains__(self, sequence_num: SequenceNumber):
         assert isinstance(sequence_num, SequenceNumber)
         return self.entries[sequence_num.value % self.size][0] == sequence_num
 
@@ -442,12 +461,13 @@ class PacketCache:
                 yield item
 
 class BaseConnection:
-    def __init__(self, protocol, salt, sock, addr=None):
+    def __init__(self, protocol: NetProtocol, salt: bytes, sock: SocketType, addr: Optional[NetAddr]=None):
         self.protocol_id = protocol[0]
         if len(protocol) == 2:
             self.sending_types = self.receiving_types = protocol[1]
         elif len(protocol) == 3:
-            self.sending_types,  self.receiving_types = protocol[1:]
+            self.sending_types = protocol[1]
+            self.receiving_types = cast(List[Type[Packet]], protocol[2])
         else:
             assert False
         assert len(self.sending_types) <= 255 and len(self.receiving_types) <= 255
@@ -457,51 +477,51 @@ class BaseConnection:
         self.socket = sock
         self.addr = addr
 
-        self.trace = None
+        self.trace: Optional[List[Tuple[float, Packet]]] = None
 
         self.earliest_sending = SequenceNumber(16)
         self.latest_sending = SequenceNumber(16)
 
 
         self.earliest_unreceived = SequenceNumber(16)
-        self.latest_received = None
+        self.latest_received: Optional[SequenceNumber] = None
 
         self.last_received = time.time()
 
-        self.chunk_queue = []
+        self.chunk_queue: List[ChunkSender] = []
         self.chunk_id = 0
-        self.sending_chunk = None
+        self.sending_chunk: Optional[ChunkSender] = None
 
-        self.chunk_receiver = None
+        self.chunk_receiver: Optional[ChunkReceiver] = None
 
-        self.sending_packets = PacketCache(256)
-        self.received_packets = PacketCache(256)
+        self.sending_packets: PacketCache[Tuple[bytes, Optional[float]]] = PacketCache(256)
+        self.received_packets: PacketCache[Packet] = PacketCache(256)
 
         self.rtt = 0
         self.rtt_dev = 3
 
         self.packet_loss = 0
 
-    def send(self, packet):
+    def send(self, packet: Packet):
         type_id = self.sending_types.index(type(packet)) + 1
 
         if self.trace is not None:
             self.trace.append((time.time(), packet))
 
-        if packet.type == BIG:
+        if packet.type == PacketType.BIG:
             self.chunk_queue.append(ChunkSender(self.chunk_id, packet, self))
             self.chunk_id = (self.chunk_id + 1) % 256
-        elif packet.type == RELIABLE:
+        elif packet.type == PacketType.RELIABLE:
             data = struct.pack('!BH', type_id, self.latest_sending.value) + packet.write()
             self.sending_packets[self.latest_sending] = data, None
             self.latest_sending = self.latest_sending.increment()
-        elif packet.type == NORMAL:
+        elif packet.type == PacketType.NORMAL:
             data = struct.pack('!B', type_id) + packet.write()
             self.send_raw(data)
         else:
             raise ValueError('Invalid Packet Type')
 
-    def send_raw(self, data): # Adds 8 bytes
+    def send_raw(self, data: bytes): # Adds 8 bytes
         data = apply_crc(self.protocol_id, self.salt + data)
 
         if len(data) > MTU:
@@ -528,7 +548,7 @@ class BaseConnection:
         f = 0.05
         self.packet_loss = self.packet_loss*(1-f) + 0*f
 
-    def update_rtt(self, rtt):
+    def update_rtt(self, rtt: float):
         # RFC 2988
         a = 1/8
         b = 1/4
@@ -536,7 +556,7 @@ class BaseConnection:
         self.rtt_dev = self.rtt_dev*(1-b) + abs(rtt - self.rtt)*b
         self.rtt = self.rtt*(1-a) + rtt*a
 
-    def _handle_ack_packet(self, packet):
+    def _handle_ack_packet(self, packet: bytes):
         size = len(packet)
         if size == 32 + 1: # Big ACK
             if self.sending_chunk is None:
@@ -576,7 +596,7 @@ class BaseConnection:
             if DEBUG:
                 print('Received ACK with invalid size')
 
-    def receive(self, data):
+    def receive(self, data: bytes):
         if not check_crc(self.protocol_id, data):
             if DEBUG:
                 print('Received packet with invalid crc')
@@ -601,12 +621,12 @@ class BaseConnection:
             if DEBUG:
                 print('Received packet of type', packet_type)
 
-            if packet_type.type == NORMAL:
+            if packet_type.type == PacketType.NORMAL:
                 packet = packet_type()
                 packet.read(payload)
                 return [packet]
 
-            if packet_type.type == RELIABLE:
+            if packet_type.type == PacketType.RELIABLE:
                 sequence_number = SequenceNumber(16, struct.unpack('!H', payload[:2])[0])
                 if sequence_number not in self.received_packets:
                     reliable = packet_type()
@@ -634,7 +654,7 @@ class BaseConnection:
 
                 return packets
             
-            if packet_type.type == BIG:
+            if packet_type.type == PacketType.BIG:
                 if self.chunk_receiver is None:
                     self.chunk_receiver = ChunkReceiver(packet_type, self)
                 elif (self.chunk_receiver.chunk_id + 1) % 256 == payload[0]:
@@ -690,13 +710,13 @@ class BaseConnection:
                 self.sending_chunk.update()
 
 class Connection(BaseConnection):
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, protocol: NetProtocol, salt: bytes, sock, addr: Optional[NetAddr]=None):
+        super().__init__(protocol, salt, sock, addr)
 
         self.socket.setblocking(False)
 
     def poll(self):
-        packets = []
+        packets: List[Packet] = []
         while True:
             try:
                 data = self.socket.recv(MTU)
@@ -707,14 +727,15 @@ class Connection(BaseConnection):
         return packets
 
 class ThreadedConnection(BaseConnection):
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, protocol: NetProtocol, salt: bytes, sock, addr: Optional[NetAddr]=None):
+        super().__init__(protocol, salt, sock, addr)
 
         self.lock = threading.RLock()
 
         self._is_stopped = False
         self.thread = threading.Thread(name='Network Thread', target=self._run_thread)
         self.socket.setblocking(True)
+        self._packet_handler: Optional[Callable[[Packet], None]] = None
 
     def update(self):
         with self.lock:
@@ -730,7 +751,7 @@ class ThreadedConnection(BaseConnection):
                 for packet in self.receive(data):
                     self._packet_handler(packet)
 
-    def start(self, packet_handler):
+    def start(self, packet_handler: Callable[[Packet], None]):
         self._packet_handler = packet_handler
         self.thread.start()
 

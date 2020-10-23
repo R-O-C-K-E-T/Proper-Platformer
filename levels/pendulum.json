@@ -3,8 +3,8 @@
   "spawn": [-1000, 0],
   "constraints": [{"type": "pivot", "objects": [1, 0], "pos": [0, -250]}, {"type": "pivot", "objects": [8, 19], "pos": [-213, 45]}, {"type": "pivot", "objects": [3, 2], "pos": [-307, 91]}, {"type": "pivot", "objects": [4, 3], "pos": [-354, 91]}, {"type": "pivot", "objects": [5, 4], "pos": [-401, 91]}, {"type": "pivot", "objects": [6, 5], "pos": [-448, 91]}, {"type": "pivot", "objects": [9, 6], "pos": [-495, 89]}, {"type": "pivot", "objects": [9, 7], "pos": [-495, 44]}, {"type": "pivot", "objects": [12, 10], "pos": [81, 9]}, {"type": "pivot", "objects": [12, 11], "pos": [182, 9]}, {"type": "fixed", "objects": [15, 13], "pos": [147, -24]}, {"type": "fixed", "objects": [15, 12], "pos": [148, 4]}, {"type": "fixed", "objects": [14, 12], "pos": [116, 3]}, {"type": "fixed", "objects": [14, 13], "pos": [116, -24]}, {"type": "fixed", "objects": [16, 13], "pos": [76, -32]}, {"type": "fixed", "objects": [17, 13], "pos": [186, -33]}, {"type": "pivot", "objects": [36, 2], "pos": [-260, 91]}, {"type": "pivot", "objects": [36, 8], "pos": [-213, 90]}, {"type": "fixed", "pos": [-1392, 917], "objects": [51, 52]}, {"type": "fixed", "pos": [-1331, 928], "objects": [53, 51]}, {"type": "fixed", "pos": [-1270, 917], "objects": [50, 51]}, {"type": "pivot", "pos": [-1880, -475], "objects": [60, 58]}, {"type": "pivot", "pos": [-1730, -475], "objects": [60, 59]}, {"type": "pivot", "pos": [-1180, -475], "objects": [63, 61]}, {"type": "pivot", "pos": [-1030, -475], "objects": [63, 62]}, {"type": "pivot", "objects": [73, 71], "pos": [-401, -620]}, {"type": "pivot", "objects": [73, 72], "pos": [-241, -620]}, {"type": "pivot", "pos": [778, 945], "objects": [116, 114]}, {"type": "pivot", "pos": [701, 944], "objects": [116, 115]}, {"type": "pivot", "pos": [624, 945], "objects": [118, 115]}, {"type": "pivot", "pos": [547, 945], "objects": [118, 117]}, {"type": "pivot", "pos": [470, 945], "objects": [120, 117]}, {"type": "pivot", "pos": [393, 945], "objects": [120, 119]}, {"type": "pivot", "pos": [316, 945], "objects": [121, 119]}, {"type": "pivot", "pos": [239, 945], "objects": [122, 121]}, {"type": "pivot", "pos": [855, 945], "objects": [123, 114]}, {"type": "pivot", "pos": [933, 944], "objects": [124, 123]}, {"type": "pivot", "pos": [1086, 945], "objects": [126, 125]}, {"type": "pivot", "pos": [1010, 945], "objects": [125, 124]}, {"type": "pivot", "objects": [122, 40], "pos": [162, 946]}, {"type": "pivot", "objects": [126, 92], "pos": [1165, 944]}],
   "_spawn": [1700, -30],
-  "serverScript": "def left(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   for obj in wheels:\n      obj.rotV = obj.rotV - 0.005\n   waiting[self] = time\n   self.colour = [217,0,0]\n\ndef right(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   for obj in wheels:\n      obj.rotV = obj.rotV + 0.005\n   waiting[self] = time\n   self.colour = [217,0,0]\n\ndef onDeath(player):\n   for obj in deathReset.get(player.checkpoint, []):\n      obj.reset()\n\ndef hideBeam(self, other, normal, localA, localB):\n   global beamButton\n   self.colour = [217,0,0]\n   self.dirtyProps = True\n   if beamButton is None:\n      removeObject(beam)\n   beamButton = time, self\n\ndef thrustUp(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n\n   rot = spaceship[0].rot - math.pi / 2\n   vec = math.cos(rot), math.sin(rot)\n\n   power = 0.11 if spaceship[0].pos[1] > -150 else 0.02\n   \n   vec = vec[0]*power, vec[1]*power\n   for obj in spaceship:\n      obj.vel = obj.vel[0] + vec[0], obj.vel[1] + vec[1]\n\ndef thrustLeft(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n   for obj in spaceship:\n      obj.rotV -= 0.005\n\ndef thrustRight(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n   for obj in spaceship:\n      obj.rotV += 0.005\n\ndef launch(self, other, normal, localA, localB):\n   if other in waitingLaunch:\n      targetTime = waitingLaunch[other] + 30\n      if targetTime == time:\n         other.vel = other.vel[0], -15\n      elif targetTime > time:\n         return\n      del waitingLaunch[other]\n   else:\n      waitingLaunch[other] = time\n\ndef load(): # Will be called every time physics is reset\n   global waiting, deathReset, wheels, balance, balance2, sliders, ninja, beam, beamButton, balls, lilypads, base, spaceship, swings, swingEnergy, waitingLaunch, cart\n   waiting = {}\n   spaceship = getGroup('Spaceship')\n   deathReset = {getGroup('Checkpoint1')[0]:getGroup('Car'), getGroup('Checkpoint2')[0]:getGroup('Tower'), getGroup('Checkpoint3')[0]:spaceship}\n   wheels = getGroup('Wheels')\n   balance = getGroup('Balance')\n   balance2 = getGroup('Balance2')\n   for obj in balance + balance2:\n      obj.setMass(-1)\n      obj.dirtyProps = True\n   ninja = getGroup('Ninja')[0]\n   beam = getGroup('Beam')[0]\n   beamButton = None\n   sliders = []\n   balls = []\n   lilypads = []\n   base = {'physics': {'density': 1.0}, 'restitution':0.2, 'friction':0.8, 'colour':[200,200,0]}\n   for obj in getGroup('Pivots'):\n      obj.setMoment(1)\n      obj.dirtyProps = True\n   swingEnergy = 0.3*50\n   swings = getGroup('Swings')\n   for i, obj in enumerate(swings):\n      direction = 1 if i % 2 == 0 else -1\n      obj.vel = direction * math.sqrt(2*swingEnergy),0\n   waitingLaunch = {}\n   cart = getGroup('Cart')\n\ndef tick(): # Will be called once per tick\n   global waiting, beamButton\n   for obj, t in waiting.copy().items():\n      if t + 3 < time:\n          del waiting[obj]\n          obj.colour = obj.initialState['colour']\n          obj.dirtyProps = True\n   if beamButton is not None and beamButton[0] + 20 < time:\n      beamButton[1].colour = beamButton[1].initialState['colour']\n      beamButton[1].dirtyProps = True\n      add_object(beam)\n      beamButton = None\n   for obj in balance:\n      obj.rotV *= 0.98\n      obj.rotV -= obj.rot*0.003\n\n   for obj in balance2:\n      obj.rotV *= 0.995\n      diff = (obj.rot + math.pi/2) % (math.pi) - math.pi/2\n      obj.rotV -= diff*0.0015\n\n   if time % 60 == 0:\n      obj = createObject({**base, 'type': 'polygon', 'points': [[-30,-10],[30,-10],[30,10],[-30,10]]})\n      obj.pos = 320, 450\n      sliders.append(obj)\n      \n      if len(sliders) > 6:\n         removeObject(sliders.pop(0))\n\n   if beamButton is None and all(abs(obj.vel[0]) < 0.2 for obj in lilypads):\n      obj = createObject({**base, 'type': 'polygon', 'points': [[-30,-10],[30,-10],[30,10],[-30,10]]})\n      obj.pos = 70, 600\n      obj.vel = -3, 0\n      lilypads.append(obj)\n\n   for obj in lilypads.copy():\n      if obj.pos[0] < -1050:\n         lilypads.remove(obj)\n         removeObject(obj)\n   '''if len(lilypads) > 8:\n      removeObject(lilypads.pop(0))'''\n   if time % 12 == 1:\n      for obj in lilypads.copy():\n         r, g, b = obj.colour\n         new_colour = r-1,g-1,b+1\n         if min(new_colour) < 0:\n            lilypads.remove(obj)\n            removeObject(obj)\n         else:\n            obj.colour = new_colour\n            obj.dirtyProps = True\n\n   if time % 60 == 2:\n      obj = createObject({'physics': {'density': 2.0}, 'friction':0.8, 'restitution':0.95, 'lethal':True, 'type':'circle', 'pos':[-1730, -400], 'radius':30, 'colour':[255,0,0], 'groups':[]})\n      obj.rotV = 0.3\n      balls.append(obj)\n   for obj in balls:\n      obj.rotV = 0.3\n   if len(balls) > 3:\n      removeObject(balls.pop(0))\n\n   if ninja.pos[0] < 500:\n      ninja.rotV += 0.005\n   elif ninja.pos[0] > 750:\n      ninja.rotV -= 0.005\n   else:\n      ninja.rotV *= 0.1 / abs(ninja.rotV)\n\n   power = 0.25 if spaceship[0].pos[1] > -250 else 0.05\n   rot = spaceship[0].rot - math.pi/2\n   vec = math.cos(rot)*power, math.sin(rot)*power\n   for obj in spaceship:\n      obj.rotV = (obj.rotV - obj.rot*0.01) * 0.95\n      obj.vel = (obj.vel[0]+vec[0])*0.99, (obj.vel[1]+vec[1])*0.99\n\n   lowestHeight = -475\n   avg = sum(math.sqrt(obj.vel[0]**2+obj.vel[1]**2) for obj in swings) / len(swings)\n   for obj in swings:\n      potential = min(-0.3*(obj.pos[1]-lowestHeight), swingEnergy)\n      targetVel = math.sqrt(2*(swingEnergy-potential))/2 + avg/2\n\n      vec = obj.vel\n      vel = math.sqrt(obj.vel[0]**2 + obj.vel[1]**2)\n      \n      factor = (49/50 + targetVel/vel * 1/50)\n      obj.vel = vec[0] * factor, vec[1] * factor\n\n   if cart[0].pos[0] > 1600:\n      for obj in cart:\n         obj.reset()\n\n\n\n\n",
-  "clientScript": "def left(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   for obj in wheels:\n      obj.rotV = obj.rotV - 0.005\n   waiting[self] = time\n   self.colour = [217,0,0]\n\ndef right(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   for obj in wheels:\n      obj.rotV = obj.rotV + 0.005\n   waiting[self] = time\n   self.colour = [217,0,0]\n\ndef thrustUp(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n\n   rot = spaceship[0].rot - math.pi / 2\n   vec = math.cos(rot), math.sin(rot)\n\n   power = 0.11 if spaceship[0].pos[1] > -150 else 0.02\n   \n   vec = vec[0]*power, vec[1]*power\n   for obj in spaceship:\n      obj.vel = obj.vel[0] + vec[0], obj.vel[1] + vec[1]\n\ndef thrustLeft(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n   for obj in spaceship:\n      obj.rotV -= 0.005\n\ndef thrustRight(self, other, normal, localA, localB):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n   for obj in spaceship:\n      obj.rotV += 0.005\n\ndef load():\n   global waiting, spaceship, wheels, balance, balance2, ninja, swings, swingEnergy\n   waiting = {}\n   \n   spaceship = []\n   wheels = []\n   balance = []\n   balance2 = []\n   ninja = None\n   swings = []\n   swingEnergy = 0.3*50\n\ndef add_object(obj):\n   global ninja\n   if not isinstance(obj, Object):\n      return\n   if 'Spaceship' in obj.groups:\n      spaceship.append(obj)\n   if 'Wheels' in obj.groups:\n      wheels.append(obj)\n   if 'Balance' in obj.groups:\n      balance.append(obj)\n   if 'Balance2' in obj.groups:\n      balance2.append(obj)\n   if 'Ninja' in obj.groups:\n      ninja = obj\n   if 'Swings' in obj.groups:\n      swings.append(obj)\n\ndef tick():\n   for obj, t in waiting.copy().items():\n      if t + 3 < time:\n          del waiting[obj]\n          obj.colour = obj.initialState['colour']\n   \n   for obj in balance:\n      obj.rotV *= 0.98\n      obj.rotV -= obj.rot*0.003\n   \n   for obj in balance2:\n      obj.rotV *= 0.995\n      diff = (obj.rot + math.pi/2) % (math.pi) - math.pi/2\n      obj.rotV -= diff*0.0015\n\n   if ninja is not None:\n      if ninja.pos[0] < 400:\n         ninja.rotV += 0.005\n      elif ninja.pos[0] > 850:\n         ninja.rotV -= 0.005\n      else:\n         ninja.rotV *= 0.1 / abs(ninja.rotV)\n\n   if len(spaceship) != 0:\n      power = 0.25 if spaceship[0].pos[1] > -250 else 0.05\n      rot = spaceship[0].rot - math.pi/2\n      vec = math.cos(rot)*power, math.sin(rot)*power\n      for obj in spaceship:\n         obj.rotV = (obj.rotV - obj.rot*0.01) * 0.95\n         obj.vel = (obj.vel[0]+vec[0])*0.99, (obj.vel[1]+vec[1])*0.99\n   \n   if len(swings) != 0:\n      lowestHeight = -475\n      avg = sum(math.sqrt(obj.vel[0]**2+obj.vel[1]**2) for obj in swings) / len(swings)\n      for obj in swings:\n         potential = min(-0.3*(obj.pos[1]-lowestHeight), swingEnergy)\n         targetVel = math.sqrt(2*(swingEnergy-potential))/2 + avg/2\n\n         vec = obj.vel \n         vel = math.sqrt(obj.vel[0]**2 + obj.vel[1]**2)\n         \n         factor = (49/50 + targetVel/vel * 1/50)\n         obj.vel = vec[0] * factor, vec[1] * factor\n\n\n\n\n",
+  "server_script": "def left(self, other, normal, local_a, local_b):\n   if not isinstance(other, BasePlayer):\n      return\n   for obj in wheels:\n      obj.rot_vel = obj.rot_vel - 0.005\n   waiting[self] = time\n   self.colour = [217,0,0]\n\ndef right(self, other, normal, local_a, local_b):\n   if not isinstance(other, BasePlayer):\n      return\n   for obj in wheels:\n      obj.rot_vel = obj.rot_vel + 0.005\n   waiting[self] = time\n   self.colour = [217,0,0]\n\ndef on_death(player):\n   for obj in deathReset.get(player.checkpoint, []):\n      obj.reset()\n\ndef hide_beam(self, other, normal, local_a, local_b):\n   global beamButton\n   self.colour = [217,0,0]\n   self.dirty_props = True\n   if beamButton is None:\n      remove_object(beam)\n   beamButton = time, self\n\ndef thrust_up(self, other, normal, local_a, local_b):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n\n   rot = spaceship[0].rot - math.pi / 2\n   vec = math.cos(rot), math.sin(rot)\n\n   power = 0.11 if spaceship[0].pos[1] > -150 else 0.02\n   \n   vec = vec[0]*power, vec[1]*power\n   for obj in spaceship:\n      obj.vel = obj.vel[0] + vec[0], obj.vel[1] + vec[1]\n\ndef thrust_left(self, other, normal, local_a, local_b):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n   for obj in spaceship:\n      obj.rot_vel -= 0.005\n\ndef thrust_right(self, other, normal, local_a, local_b):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n   for obj in spaceship:\n      obj.rot_vel += 0.005\n\ndef launch(self, other, normal, local_a, local_b):\n   if other in waitingLaunch:\n      targetTime = waitingLaunch[other] + 30\n      if targetTime == time:\n         other.vel = other.vel[0], -15\n      elif targetTime > time:\n         return\n      del waitingLaunch[other]\n   else:\n      waitingLaunch[other] = time\n\ndef load(): # Will be called every time physics is reset\n   global waiting, deathReset, wheels, balance, balance2, sliders, ninja, beam, beamButton, balls, lilypads, base, spaceship, swings, swingEnergy, waitingLaunch, cart\n   waiting = {}\n   spaceship = get_group('Spaceship')\n   deathReset = {get_group('Checkpoint1')[0]:get_group('Car'), get_group('Checkpoint2')[0]:get_group('Tower'), get_group('Checkpoint3')[0]:spaceship}\n   wheels = get_group('Wheels')\n   balance = get_group('Balance')\n   balance2 = get_group('Balance2')\n   for obj in balance + balance2:\n      obj.set_mass(-1)\n      obj.dirty_props = True\n   ninja = get_group('Ninja')[0]\n   beam = get_group('Beam')[0]\n   beamButton = None\n   sliders = []\n   balls = []\n   lilypads = []\n   base = {'physics': {'density': 1.0}, 'restitution':0.2, 'friction':0.8, 'colour':[200,200,0]}\n   for obj in get_group('Pivots'):\n      obj.set_moment(1)\n      obj.dirty_props = True\n   swingEnergy = 0.3*50\n   swings = get_group('Swings')\n   for i, obj in enumerate(swings):\n      direction = 1 if i % 2 == 0 else -1\n      obj.vel = direction * math.sqrt(2*swingEnergy),0\n   waitingLaunch = {}\n   cart = get_group('Cart')\n\ndef tick(): # Will be called once per tick\n   global waiting, beamButton\n   for obj, t in waiting.copy().items():\n      if t + 3 < time:\n          del waiting[obj]\n          obj.colour = obj.initial_state['colour']\n          obj.dirty_props = True\n   if beamButton is not None and beamButton[0] + 20 < time:\n      beamButton[1].colour = beamButton[1].initial_state['colour']\n      beamButton[1].dirty_props = True\n      add_object(beam)\n      beamButton = None\n   for obj in balance:\n      obj.rot_vel *= 0.98\n      obj.rot_vel -= obj.rot*0.003\n\n   for obj in balance2:\n      obj.rot_vel *= 0.995\n      diff = (obj.rot + math.pi/2) % (math.pi) - math.pi/2\n      obj.rot_vel -= diff*0.0015\n\n   if time % 60 == 0:\n      obj = create_object({**base, 'type': 'polygon', 'points': [[-30,-10],[30,-10],[30,10],[-30,10]]})\n      obj.pos = 320, 450\n      sliders.append(obj)\n      \n      if len(sliders) > 6:\n         remove_object(sliders.pop(0))\n\n   if beamButton is None and all(abs(obj.vel[0]) < 0.2 for obj in lilypads):\n      obj = create_object({**base, 'type': 'polygon', 'points': [[-30,-10],[30,-10],[30,10],[-30,10]]})\n      obj.pos = 70, 600\n      obj.vel = -3, 0\n      lilypads.append(obj)\n\n   for obj in lilypads.copy():\n      if obj.pos[0] < -1050:\n         lilypads.remove(obj)\n         remove_object(obj)\n   '''if len(lilypads) > 8:\n      remove_object(lilypads.pop(0))'''\n   if time % 12 == 1:\n      for obj in lilypads.copy():\n         r, g, b = obj.colour\n         new_colour = r-1,g-1,b+1\n         if min(new_colour) < 0:\n            lilypads.remove(obj)\n            remove_object(obj)\n         else:\n            obj.colour = new_colour\n            obj.dirty_props = True\n\n   if time % 60 == 2:\n      obj = create_object({'physics': {'density': 2.0}, 'friction':0.8, 'restitution':0.95, 'lethal':True, 'type':'circle', 'pos':[-1730, -400], 'radius':30, 'colour':[255,0,0], 'groups':[]})\n      obj.rot_vel = 0.3\n      balls.append(obj)\n   for obj in balls:\n      obj.rot_vel = 0.3\n   if len(balls) > 3:\n      remove_object(balls.pop(0))\n\n   if ninja.pos[0] < 500:\n      ninja.rot_vel += 0.005\n   elif ninja.pos[0] > 750:\n      ninja.rot_vel -= 0.005\n   else:\n      ninja.rot_vel *= 0.1 / abs(ninja.rot_vel)\n\n   power = 0.25 if spaceship[0].pos[1] > -250 else 0.05\n   rot = spaceship[0].rot - math.pi/2\n   vec = math.cos(rot)*power, math.sin(rot)*power\n   for obj in spaceship:\n      obj.rot_vel = (obj.rot_vel - obj.rot*0.01) * 0.95\n      obj.vel = (obj.vel[0]+vec[0])*0.99, (obj.vel[1]+vec[1])*0.99\n\n   lowestHeight = -475\n   avg = sum(math.sqrt(obj.vel[0]**2+obj.vel[1]**2) for obj in swings) / len(swings)\n   for obj in swings:\n      potential = min(-0.3*(obj.pos[1]-lowestHeight), swingEnergy)\n      targetVel = math.sqrt(2*(swingEnergy-potential))/2 + avg/2\n\n      vec = obj.vel\n      vel = math.sqrt(obj.vel[0]**2 + obj.vel[1]**2)\n      \n      factor = (49/50 + targetVel/vel * 1/50)\n      obj.vel = vec[0] * factor, vec[1] * factor\n\n   if cart[0].pos[0] > 1600:\n      for obj in cart:\n         obj.reset()\n\n\n\n\n",
+  "client_script": "def left(self, other, normal, local_a, local_b):\n   if not isinstance(other, BasePlayer):\n      return\n   for obj in wheels:\n      obj.rot_vel = obj.rot_vel - 0.005\n   waiting[self] = time\n   self.colour = [217,0,0]\n\ndef right(self, other, normal, local_a, local_b):\n   if not isinstance(other, BasePlayer):\n      return\n   for obj in wheels:\n      obj.rot_vel = obj.rot_vel + 0.005\n   waiting[self] = time\n   self.colour = [217,0,0]\n\ndef thrust_up(self, other, normal, local_a, local_b):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n\n   rot = spaceship[0].rot - math.pi / 2\n   vec = math.cos(rot), math.sin(rot)\n\n   power = 0.11 if spaceship[0].pos[1] > -150 else 0.02\n   \n   vec = vec[0]*power, vec[1]*power\n   for obj in spaceship:\n      obj.vel = obj.vel[0] + vec[0], obj.vel[1] + vec[1]\n\ndef thrust_left(self, other, normal, local_a, local_b):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n   for obj in spaceship:\n      obj.rot_vel -= 0.005\n\ndef thrust_right(self, other, normal, local_a, local_b):\n   if not isinstance(other, BasePlayer):\n      return\n   self.colour = [217,0,0]\n   waiting[self] = time\n   for obj in spaceship:\n      obj.rot_vel += 0.005\n\ndef load():\n   global waiting, spaceship, wheels, balance, balance2, ninja, swings, swingEnergy\n   waiting = {}\n   \n   spaceship = []\n   wheels = []\n   balance = []\n   balance2 = []\n   ninja = None\n   swings = []\n   swingEnergy = 0.3*50\n\ndef add_object(obj):\n   global ninja\n   if not isinstance(obj, Object):\n      return\n   if 'Spaceship' in obj.groups:\n      spaceship.append(obj)\n   if 'Wheels' in obj.groups:\n      wheels.append(obj)\n   if 'Balance' in obj.groups:\n      balance.append(obj)\n   if 'Balance2' in obj.groups:\n      balance2.append(obj)\n   if 'Ninja' in obj.groups:\n      ninja = obj\n   if 'Swings' in obj.groups:\n      swings.append(obj)\n\ndef tick():\n   for obj, t in waiting.copy().items():\n      if t + 3 < time:\n          del waiting[obj]\n          obj.colour = obj.initial_state['colour']\n   \n   for obj in balance:\n      obj.rot_vel *= 0.98\n      obj.rot_vel -= obj.rot*0.003\n   \n   for obj in balance2:\n      obj.rot_vel *= 0.995\n      diff = (obj.rot + math.pi/2) % (math.pi) - math.pi/2\n      obj.rot_vel -= diff*0.0015\n\n   if ninja is not None:\n      if ninja.pos[0] < 400:\n         ninja.rot_vel += 0.005\n      elif ninja.pos[0] > 850:\n         ninja.rot_vel -= 0.005\n      else:\n         ninja.rot_vel *= 0.1 / abs(ninja.rot_vel)\n\n   if len(spaceship) != 0:\n      power = 0.25 if spaceship[0].pos[1] > -250 else 0.05\n      rot = spaceship[0].rot - math.pi/2\n      vec = math.cos(rot)*power, math.sin(rot)*power\n      for obj in spaceship:\n         obj.rot_vel = (obj.rot_vel - obj.rot*0.01) * 0.95\n         obj.vel = (obj.vel[0]+vec[0])*0.99, (obj.vel[1]+vec[1])*0.99\n   \n   if len(swings) != 0:\n      lowestHeight = -475\n      avg = sum(math.sqrt(obj.vel[0]**2+obj.vel[1]**2) for obj in swings) / len(swings)\n      for obj in swings:\n         potential = min(-0.3*(obj.pos[1]-lowestHeight), swingEnergy)\n         targetVel = math.sqrt(2*(swingEnergy-potential))/2 + avg/2\n\n         vec = obj.vel \n         vel = math.sqrt(obj.vel[0]**2 + obj.vel[1]**2)\n         \n         factor = (49/50 + targetVel/vel * 1/50)\n         obj.vel = vec[0] * factor, vec[1] * factor\n\n\n\n\n",
   "objects": [
     {
       "colour": [56, 217, 217],
@@ -16,7 +16,7 @@
       "radius": 18,
       "pos": [-150, -250],
       "physics": {"density": 0.2},
-      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+      "checkpoint": {"colour": [217, 0, 217], "dx": 0, "dy": 30}
     },
     {
       "colour": [217, 212, 0],
@@ -86,7 +86,7 @@
       "groups": [],
       "points": [[-496, 38], [-1030, 38], [-1030, 60], [-496, 60]],
       "type": "polygon",
-      "animated": {"period": 500, "xOffset": -110, "yOffset": 0, "tOffset": 0}
+      "animated": {"period": 500, "dx": -110, "dy": 0, "dt": 0}
     },
     {
       "colour": [131, 80, 46],
@@ -363,7 +363,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[148, 300], [148, 316], [164, 316], [164, 300]],
-      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+      "checkpoint": {"colour": [217, 0, 217], "dx": 0, "dy": 30}
     },
     {
       "colour": [131, 80, 46],
@@ -391,7 +391,7 @@
       "lethal": false,
       "groups": [],
       "type": "polygon",
-      "trigger": "hideBeam",
+      "trigger": "hide_beam",
       "points": [[-87, 937], [-87, 931], [-49, 931], [-49, 937]]
     },
     {
@@ -420,7 +420,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[48, 847], [48, 863], [64, 863], [64, 847]],
-      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+      "checkpoint": {"colour": [217, 0, 217], "dx": 0, "dy": 30}
     },
     {
       "colour": [188, 32, 44],
@@ -439,7 +439,7 @@
       "groups": ["Checkpoint3"],
       "type": "polygon",
       "points": [[-1194, 847], [-1194, 863], [-1178, 863], [-1178, 847]],
-      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+      "checkpoint": {"colour": [217, 0, 217], "dx": 0, "dy": 30}
     },
     {
       "colour": [80, 217, 41],
@@ -467,7 +467,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[-822, 183], [-822, 199], [-806, 199], [-806, 183]],
-      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+      "checkpoint": {"colour": [217, 0, 217], "dx": 0, "dy": 30}
     },
     {
       "colour": [76, 83, 187],
@@ -502,7 +502,7 @@
       "restitution": 0.0,
       "lethal": false,
       "groups": ["Spaceship"],
-      "trigger": "thrustRight",
+      "trigger": "thrust_right",
       "type": "polygon",
       "points": [[-1270, 906], [-1270, 925], [-1276, 925], [-1276, 906]],
       "physics": {"density": 1.0}
@@ -523,7 +523,7 @@
       "restitution": 0.0,
       "lethal": false,
       "groups": ["Spaceship"],
-      "trigger": "thrustLeft",
+      "trigger": "thrust_left",
       "type": "polygon",
       "points": [[-1387, 906], [-1387, 925], [-1393, 925], [-1393, 906]],
       "physics": {"density": 1.0}
@@ -534,7 +534,7 @@
       "restitution": 0.0,
       "lethal": false,
       "groups": ["Spaceship"],
-      "trigger": "thrustUp",
+      "trigger": "thrust_up",
       "type": "polygon",
       "points": [[-1310, 927], [-1310, 922], [-1355, 922], [-1355, 927]],
       "physics": {"density": 1.0}
@@ -644,7 +644,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[-550, -580], [-550, -564], [-534, -564], [-534, -580]],
-      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+      "checkpoint": {"colour": [217, 0, 217], "dx": 0, "dy": 30}
     },
     {
       "colour": [188, 33, 44],
@@ -758,7 +758,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[2345, -224], [2366, -222], [2374, -303], [2353, -305]],
-      "animated": {"period": 100, "xOffset": 10, "yOffset": -99, "tOffset": 0}
+      "animated": {"period": 100, "dx": 10, "dy": -99, "dt": 0}
     },
     {
       "colour": [188, 32, 43],
@@ -768,7 +768,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[2567, -200], [2588, -198], [2596, -279], [2575, -281]],
-      "animated": {"period": 100, "xOffset": 10, "yOffset": -99, "tOffset": 0}
+      "animated": {"period": 100, "dx": 10, "dy": -99, "dt": 0}
     },
     {
       "colour": [188, 32, 43],
@@ -778,7 +778,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[2126, -247], [2147, -245], [2155, -326], [2134, -328]],
-      "animated": {"period": 100, "xOffset": 10, "yOffset": -99, "tOffset": 0}
+      "animated": {"period": 100, "dx": 10, "dy": -99, "dt": 0}
     },
     {
       "colour": [188, 32, 43],
@@ -788,7 +788,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[2098, 23], [2119, 22], [2110, -59], [2089, -58]],
-      "animated": {"period": 100, "xOffset": -10, "yOffset": -99, "tOffset": 50}
+      "animated": {"period": 100, "dx": -10, "dy": -99, "dt": 50}
     },
     {
       "colour": [56, 217, 217],
@@ -798,7 +798,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[1686, -428], [1686, -412], [1702, -412], [1702, -428]],
-      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+      "checkpoint": {"colour": [217, 0, 217], "dx": 0, "dy": 30}
     },
     {
       "colour": [56, 217, 217],
@@ -808,7 +808,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[1777, -71], [1777, -55], [1793, -55], [1793, -71]],
-      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+      "checkpoint": {"colour": [217, 0, 217], "dx": 0, "dy": 30}
     },
     {
       "colour": [171, 229, 229],
@@ -827,7 +827,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[-1890, -309], [-1890, -293], [-1874, -293], [-1874, -309]],
-      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+      "checkpoint": {"colour": [217, 0, 217], "dx": 0, "dy": 30}
     },
     {
       "colour": [56, 217, 217],
@@ -837,7 +837,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[-940, -309], [-940, -293], [-924, -293], [-924, -309]],
-      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+      "checkpoint": {"colour": [217, 0, 217], "dx": 0, "dy": 30}
     },
     {
       "colour": [188, 32, 43],
@@ -847,7 +847,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[2521, -20], [2542, -21], [2533, -102], [2512, -101]],
-      "animated": {"period": 100, "xOffset": -10, "yOffset": -99, "tOffset": 50}
+      "animated": {"period": 100, "dx": -10, "dy": -99, "dt": 50}
     },
     {
       "colour": [188, 32, 43],
@@ -857,7 +857,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[2304, 2], [2325, 1], [2316, -80], [2295, -79]],
-      "animated": {"period": 100, "xOffset": -10, "yOffset": -99, "tOffset": 50}
+      "animated": {"period": 100, "dx": -10, "dy": -99, "dt": 50}
     },
     {
       "colour": [171, 228, 228],
@@ -903,7 +903,7 @@
       "groups": [],
       "type": "polygon",
       "points": [[1162, 847], [1162, 863], [1178, 863], [1178, 847]],
-      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+      "checkpoint": {"colour": [217, 0, 217], "dx": 0, "dy": 30}
     },
     {
       "colour": [80, 217, 41],
@@ -1039,7 +1039,7 @@
       "groups": ["Checkpoint2"],
       "type": "polygon",
       "points": [[148, 183], [148, 199], [164, 199], [164, 183]],
-      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+      "checkpoint": {"colour": [217, 0, 217], "dx": 0, "dy": 30}
     },
     {
       "colour": [80, 217, 41],
@@ -1058,7 +1058,7 @@
       "groups": ["Checkpoint2"],
       "type": "polygon",
       "points": [[1726, 842], [1726, 858], [1742, 858], [1742, 842]],
-      "checkpoint": {"colour": [217, 0, 217], "xOffset": 0, "yOffset": 30}
+      "checkpoint": {"colour": [217, 0, 217], "dx": 0, "dy": 30}
     },
     {
       "colour": [188, 33, 44],

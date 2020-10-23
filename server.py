@@ -1,9 +1,9 @@
-import struct, math, time, pickle, threading
+import math, time
 import numpy as np
 
 import physics.physics as physics
 
-import shared, client, wrapper, objects, packets, networking, util
+import objects, packets, networking, util
 
 class ObjectSync:
     def __init__(self, server, ID, obj):
@@ -20,11 +20,11 @@ class ObjectSync:
     def update(self):
         obj_packets = []
         if self.new:
-            self.prevVel = np.array(self.obj.vel, dtype=float)
-            self.prevPos = np.array(self.obj.pos, dtype=float)
+            self.prev_vel = np.array(self.obj.vel, dtype=float)
+            self.prev_pos = np.array(self.obj.pos, dtype=float)
             self.new = False
 
-            obj_packets += self.getCreationPackets()
+            obj_packets += self.get_creation_packets()
         else:
             self.priority += 0.02 if self.obj.mass < 0 and self.obj.moment < 0 else 0.1
             self.dt += 1
@@ -32,51 +32,51 @@ class ObjectSync:
             pos = np.array(self.obj.pos, dtype=float)
             vel = np.array(self.obj.vel, dtype=float)
 
-            if sum(vel**2) < 0.2**2 and sum(np.array(self.prevVel)**2): # if stationary
-                posPrediction = self.prevPos + self.prevVel*self.dt
-                velPrediction = self.prevVel
+            if sum(vel**2) < 0.2**2 and sum(np.array(self.prev_vel)**2): # if stationary
+                pos_prediction = self.prev_pos + self.prev_vel*self.dt
+                vel_prediction = self.prev_vel
             else:
-                posPrediction = self.prevPos + self.prevVel*self.dt + np.multiply(self.server.world.gravity, self.dt**2/2)
-                velPrediction = self.prevVel + np.multiply(self.server.world.gravity, self.dt)
+                pos_prediction = self.prev_pos + self.prev_vel*self.dt + np.multiply(self.server.world.gravity, self.dt**2/2)
+                vel_prediction = self.prev_vel + np.multiply(self.server.world.gravity, self.dt)
 
-            self.priority += min(math.sqrt(sum((posPrediction - pos)**2)) / 15, 0.3)
-            self.priority += min(math.sqrt(sum((velPrediction - vel)**2)) / 15, 0.3)
+            self.priority += min(math.sqrt(sum((pos_prediction - pos)**2)) / 15, 0.3)
+            self.priority += min(math.sqrt(sum((vel_prediction - vel)**2)) / 15, 0.3)
 
-            if self.obj.dirtyState:
+            if self.obj.dirty_state:
                 self.priority += 1
-                self.obj.dirtyState = False
+                self.obj.dirty_state = False
 
-        if self.obj.dirtyProps:
-            obj_packets.append(self.getPropertiesPacket())
-            self.obj.dirtyProps = False
+        if self.obj.dirty_props:
+            obj_packets.append(self.get_properties_packet())
+            self.obj.dirty_props = False
             self.ever_dirty = True
 
         return obj_packets
 
-    def getCreationPackets(self):
+    def get_creation_packets(self):
         obj_packets = []
         if not self.new:
             obj_packets.append(packets.NewObjectPacketClient(self.server.world.tick, self.id, self.obj))
             if self.ever_dirty:
-                obj_packets.append(self.getPropertiesPacket())
+                obj_packets.append(self.get_properties_packet())
         return obj_packets
 
 
     def reset(self):
-        self.prevPos = np.array(self.obj.pos, dtype=float)
-        self.prevVel = np.array(self.obj.vel, dtype=float)
+        self.prev_pos = np.array(self.obj.pos, dtype=float)
+        self.prev_vel = np.array(self.obj.vel, dtype=float)
         self.dt = 0
         self.priority = 0
 
-    def getPropertiesPacket(self):
+    def get_properties_packet(self):
         return packets.ObjectPropsPacketClient(self.server.world.tick, self.id, self.obj)
 
 class Server:
-    def __init__(self, world, clientScript, port):
+    def __init__(self, world, client_script, port):
         self.port = port
-        self.clientScript = clientScript
+        self.client_script = client_script
 
-        self.loadWorld(world)
+        self.load_world(world)
 
         self.actions = {}
 
@@ -93,68 +93,68 @@ class Server:
 
         self.paused = False
 
-    def loadWorld(self, world):
+    def load_world(self, world):
         self.world = world
-        self.objectSyncs = [ObjectSync(self, ID, obj) for ID, obj in self.world.objects.items()]
+        self.object_syncs = [ObjectSync(self, ID, obj) for ID, obj in self.world.objects.items()]
 
         _add_object = self.world.add_object
         def add_object(obj):
-            ID = self.world.curObjID
+            ID = self.world.current_object_id
             #print('Adding Object', ID, obj.colour)
             _add_object(obj)
             if isinstance(obj, objects.Object):
-                self.objectSyncs.append(ObjectSync(self, ID, obj))
+                self.object_syncs.append(ObjectSync(self, ID, obj))
                 #self.sendall(packets.NewObjectPacketClient(self.world.tick, ID, obj))
         self.world.add_object = self.world.script['add_object'] = add_object
 
-        _removeObject = self.world.removeObject
-        def removeObject(obj):
+        _remove_object = self.world.remove_object
+        def remove_object(obj):
             if isinstance(obj, objects.Object):
                 for ID, other in self.world.objects.items():
                     if other is obj:
                         break
                 else:
                     raise ValueError
-                _removeObject(obj)
+                _remove_object(obj)
 
-                for i, sync in enumerate(self.objectSyncs):
+                for i, sync in enumerate(self.object_syncs):
                     if sync.id == ID:
                         break
                 else:
                     raise ValueError
-                self.objectSyncs.pop(i)
+                self.object_syncs.pop(i)
 
                 self.sendall(packets.DeleteObjectPacketClient(self.world.tick, ID))
             else:
-                _removeObject(obj)
-        self.world.removeObject = self.world.script['removeObject'] = removeObject
+                _remove_object(obj)
+        self.world.remove_object = self.world.script['remove_object'] = remove_object
 
-        _copyObjects = self.world.copyObjects
-        def copyObjects(objects, ID):
-            newObjects = _copyObjects(objects, ID)
+        _copy_objects = self.world.copy_objects
+        def copy_objects(objects, ID):
+            new_objects = _copy_objects(objects, ID)
 
-            for obj in newObjects:
-                obj_ID = util.findKey(self.world.objects, obj)
+            for obj in new_objects:
+                obj_ID = util.find_key(self.world.objects, obj)
                 for other, constraint in obj.constraints:
-                    other_ID = util.findKey(self.world.objects, other)
+                    other_ID = util.find_key(self.world.objects, other)
 
-                    localA = constraint.localA.tolist() if type(constraint.localA) == np.ndarray else constraint.localA
-                    localB = constraint.localB.tolist() if type(constraint.localB) == np.ndarray else constraint.localB
+                    local_a = constraint.local_a.tolist() if type(constraint.local_a) == np.ndarray else constraint.local_a
+                    local_b = constraint.local_b.tolist() if type(constraint.local_b) == np.ndarray else constraint.local_b
 
                     if type(constraint) == physics.PivotConstraint:
-                        data = {'type': 'pivot', 'localA': localA, 'localB': localB}
+                        data = {'type': 'pivot', 'local_a': local_a, 'local_b': local_b}
                     elif type(constraint) == physics.FixedConstraint:
-                        data = {'type': 'fixed', 'localA': localA, 'localB': localB}
+                        data = {'type': 'fixed', 'local_a': local_a, 'local_b': local_b}
                     elif type(constraint) == physics.SliderConstraint:
                         normal = constraint.normal.tolist() if type(normal) == np.ndarray else constraint.normal
-                        data = {'type': 'slider', 'localA': localA, 'localB': localB, 'normal': normal}
+                        data = {'type': 'slider', 'local_a': local_a, 'local_b': local_b, 'normal': normal}
 
                     self.pending_constraints.append(packets.NewConstraintPacketClient(self.world.tick, obj_ID, other_ID, data))
-            return newObjects
-        self.world.copyObjects = copyObjects
+            return new_objects
+        self.world.copy_objects = copy_objects
 
     def handle_packet(self, connection, packet):
-        packet.handleServer(self, connection)
+        packet.handle_server(self, connection)
 
     def update(self):
         self.connection_handler.update()
@@ -175,13 +175,13 @@ class Server:
             self.world.update()
 
         updating_objects = []
-        for objSync in self.objectSyncs:
-            for packet in objSync.update():
+        for obj_sync in self.object_syncs:
+            for packet in obj_sync.update():
                 self.sendall(packet)
 
-            if objSync.priority >= 1:
-                objSync.reset()
-                updating_objects.append((objSync.id, objSync.obj))
+            if obj_sync.priority >= 1:
+                obj_sync.reset()
+                updating_objects.append((obj_sync.id, obj_sync.obj))
 
         for packet in self.pending_constraints: # TODO handle case where play joins same tick as this
             self.sendall(packet)
@@ -223,7 +223,7 @@ class Server:
             else:
                 assert False
             del self.playerIDs[ID]
-            self.world.removeObject(player)
+            self.world.remove_object(player)
 
             self.sendall(packets.DeletePlayerPacketClient(self.world.tick, ID))
 
@@ -239,13 +239,13 @@ class Server:
             self.connection_handler.disconnect(connection.addr)
             return
         #connection.trace = []
-        payload.handleServer(self, connection)
+        payload.handle_server(self, connection)
 
     def stop(self, reason):
         self.connection_handler.sendall(packets.DisconnectPacket(reason))
         self.connection_handler.stop()
 
-    def setWorld(self, world, clientScript):
+    def set_world(self, world, client_script):
         for ID in self.world.objects:
             self.sendall(packets.DeleteObjectPacketClient(self.world.tick, ID))
 
@@ -265,34 +265,34 @@ class Server:
             new_connections[connection] = new_players
         self.connections = new_connections
 
-        self.loadWorld(world)
+        self.load_world(world)
 
         self.sendall(packets.LevelPropsPacketClient(world.gravity, world.spawn))
 
-        for obj_sync in self.objectSyncs:
+        for obj_sync in self.object_syncs:
             for packet in obj_sync.update():
                 self.sendall(packet)
 
-        if clientScript is None:
-            if self.clientScript is not None:
+        if client_script is None:
+            if self.client_script is not None:
                 self.sendall(packets.ScriptPacketClient(''))
         else:
-            self.sendall(packets.ScriptPacketClient(clientScript))
-        self.clientScript = clientScript
+            self.sendall(packets.ScriptPacketClient(client_script))
+        self.client_script = client_script
 
-        for idA, objA in world.objects.items():
-            for objB, constraint in objA.constraints:
-                idB = util.findKey(self.world.objects, objB)
+        for id_a, obj_a in world.objects.items():
+            for obj_b, constraint in obj_a.constraints:
+                id_b = util.find_key(self.world.objects, obj_b)
 
-                localA = constraint.localA.tolist() if type(constraint.localA) == np.ndarray else constraint.localA
-                localB = constraint.localB.tolist() if type(constraint.localB) == np.ndarray else constraint.localB
+                local_a = constraint.local_a.tolist() if type(constraint.local_a) == np.ndarray else constraint.local_a
+                local_b = constraint.local_b.tolist() if type(constraint.local_b) == np.ndarray else constraint.local_b
 
                 if type(constraint) == physics.PivotConstraint:
-                    data = {'type': 'pivot', 'localA': localA, 'localB': localB}
+                    data = {'type': 'pivot', 'local_a': local_a, 'local_b': local_b}
                 elif type(constraint) == physics.FixedConstraint:
-                    data = {'type': 'fixed', 'localA': localA, 'localB': localB}
+                    data = {'type': 'fixed', 'local_a': local_a, 'local_b': local_b}
                 elif type(constraint) == physics.SliderConstraint:
                     normal = constraint.normal.tolist() if type(normal) == np.ndarray else constraint.normal
-                    data = {'type': 'slider', 'localA': localA, 'localB': localB, 'normal': normal}
+                    data = {'type': 'slider', 'local_a': local_a, 'local_b': local_b, 'normal': normal}
 
-                self.sendall(packets.NewConstraintPacketClient(world.tick, idA, idB, data))
+                self.sendall(packets.NewConstraintPacketClient(world.tick, id_a, id_b, data))

@@ -2,7 +2,7 @@
   "gravity": [0, 0.3],
   "spawn": [0, -500],
   "constraints": [],
-  "serverScript": "def load():\n    for x in range(-25,25):\n        for y in range(-25,-5):\n            createObject({'colour':[50,50,50], 'pos':[x*20,y*20], 'radius':15, 'type':'circle', 'physics':{'density':0.2}})\n\n\n",
+  "server_script": "def load():\n    for x in range(-25,25):\n        for y in range(-25,-5):\n            create_object({'colour':[50,50,50], 'pos':[x*20,y*20], 'radius':15, 'type':'circle', 'physics':{'density':0.2}})\n\n\n",
   "objects": [
     {
       "colour": [60, 192, 51],

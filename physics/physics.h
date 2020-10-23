@@ -59,7 +59,7 @@ class World {
 
     const std::vector<Object *> getObjects() { return objects; };
     void clear();
-    void add_object(Object *obj);
+    void addObject(Object *obj);
     void removeObject(Object *obj);
 
     std::vector<ContactConstraint> getContacts() const;

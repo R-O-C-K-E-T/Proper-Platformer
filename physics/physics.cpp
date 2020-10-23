@@ -592,7 +592,7 @@ void World::clear() {
     contactConstraints.clear();
 }
 
-void World::add_object(Object *obj) {
+void World::addObject(Object *obj) {
     objects.push_back(obj);
 
     std::pair<Vec2d, Vec2d> bounds = obj->getBounds();

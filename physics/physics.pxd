@@ -24,7 +24,7 @@ cdef extern from "physics.h":
       void update(double)
 
       void clear()
-      void add_object(objects.Object* obj)
+      void addObject(objects.Object* obj)
       void removeObject(objects.Object* obj)
 
       vector[objects.ContactConstraint] getContacts()

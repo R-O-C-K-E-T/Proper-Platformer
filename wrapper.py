@@ -1,18 +1,18 @@
 import numpy as np
-import math, functools, types, json, random, copy
+import math, functools, types, random, copy
 from traceback import print_exc
 
 import physics.physics as physics
-import util, camera, shared, safe, objects, actions
+import util, objects, actions
 
 class World(physics.World):
     def __init__(self, isHost):
-        super().__init__(baumgarteBias=0.1, solverSteps=10, slopP=0.3, slopR=0.01)
+        super().__init__(baumgarte_bias=0.1, solver_steps=10, slop_p=0.3, slop_r=0.01)
         self.steps = 3
         self.script = {}
         self.spawn = 0,0
 
-        self.curObjID = 0
+        self.current_object_id = 0
         self.objects = {}
         self.players = []
 
@@ -24,12 +24,14 @@ class World(physics.World):
 
         memo = {}
         for obj in self:
-            if hasattr(obj, 'displayList'):
-                memo[id(obj.displayList)] = obj.displayList
+            if hasattr(obj, 'displaylist'):
+                memo[id(obj.displaylist)] = obj.displaylist
+            if hasattr(obj, 'fancy_displaylist'):
+                memo[id(obj.fancy_displaylist)] = obj.fancy_displaylist
             if hasattr(obj,'data'):
                 memo[id(obj.data)] = obj.data
-            if hasattr(obj,'initialState'):
-                memo[id(obj.initialState)] = obj.initialState
+            if hasattr(obj,'initial_state'):
+                memo[id(obj.initial_state)] = obj.initial_state
             if hasattr(obj,'points'):
                 memo[id(obj.points)] = obj.points
             for constraint in obj.constraints:
@@ -67,78 +69,78 @@ class World(physics.World):
         for obj in self:
             obj.update(dt)
 
-    def copyObjects(self, objects, ID):
+    def copy_objects(self, objects, ID):
         memo = {id(self) : self}
-        newObjects = copy.deepcopy(objects, memo=memo)
+        new_objects = copy.deepcopy(objects, memo=memo)
 
-        for obj in newObjects:
+        for obj in new_objects:
             obj.groups.append(ID)
 
-        for obj in newObjects:
+        for obj in new_objects:
             self.add_object(obj)
 
-        return newObjects
+        return new_objects
 
-    def makePrototype(self, objects):
+    def make_prototype(self, objects):
         objects = list(objects)
 
         for obj in objects:
-            self.removeObject(obj)
+            self.remove_object(obj)
 
         i = 0
         def prototype():
             nonlocal i
-            newObjects = self.copyObjects(objects, i)
+            new_objects = self.copy_objects(objects, i)
             i += 1
-            return newObjects
+            return new_objects
         return prototype
 
-    def createObject(self, data):
+    def create_object(self, data):
         obj = objects.Object(self, actions.add_default_properties(data))
         self.add_object(obj)
         return obj
 
     def add_object(self, obj):
         if isinstance(obj, objects.Object):
-            self.objects[self.curObjID] = obj
-            self.curObjID += 1
+            self.objects[self.current_object_id] = obj
+            self.current_object_id += 1
         if isinstance(obj, objects.BasePlayer):
             self.players.append(obj)
         self.append(obj)
 
-    def removeObject(self, obj):
+    def remove_object(self, obj):
         self.remove(obj)
         obj.cleanup()
         if isinstance(obj, objects.Object):
-            ID = util.findKey(self.objects, obj)
+            ID = util.find_key(self.objects, obj)
             del self.objects[ID]
         if isinstance(obj, objects.BasePlayer):
             self.players.remove(obj)
 
-    def addConstraint(self, objA, objB, data):
+    def add_constraint(self, obj_a, obj_b, data):
         if data['type'] == 'pivot':
             point = np.array(data['pos'], dtype=float)
             constraint = physics.PivotConstraint(util.rotate(
-                  point - objA.pos, -objA.rot), util.rotate(point - objB.pos, -objB.rot))
+                  point - obj_a.pos, -obj_a.rot), util.rotate(point - obj_b.pos, -obj_b.rot))
         elif data['type'] == 'fixed':
             point = np.array(data['pos'], dtype=float)
             constraint = physics.FixedConstraint(util.rotate(
-                  point - objA.pos, -objA.rot), util.rotate(point - objB.pos, -objB.rot))
+                  point - obj_a.pos, -obj_a.rot), util.rotate(point - obj_b.pos, -obj_b.rot))
         elif data['type'] == 'slider':
             pointA, pointB = np.array(data['pos'], dtype=float)
-            normal = util.getNormal(pointA, pointB)
-            constraint = physics.SliderConstraint(util.rotate(pointA - objA.pos, -objA.rot),
-                                             util.rotate(pointB - objB.pos, -objB.rot),
-                                             util.rotate(normal, -objA.rot))
-        objA.constraints.append((objB, constraint))
+            normal = util.get_normal(pointA, pointB)
+            constraint = physics.SliderConstraint(util.rotate(pointA - obj_a.pos, -obj_a.rot),
+                                             util.rotate(pointB - obj_b.pos, -obj_b.rot),
+                                             util.rotate(normal, -obj_a.rot))
+        obj_a.constraints.append((obj_b, constraint))
 
-    def getGroup(self, *names):
+    def get_group(self, *names):
         return [obj for obj in self.objects.values() if all(name in obj.groups for name in names)]
 
-    def loadScript(self, script):
-        self.script = {'players': self.players, 'time': self.tick, 'getGroup': self.getGroup, 'math': math, 'random':random, 'objects': self.objects, 'BasePlayer': objects.BasePlayer, 'Object': objects.Object}
+    def load_script(self, script):
+        self.script = {'players': self.players, 'time': self.tick, 'get_group': self.get_group, 'math': math, 'random':random, 'objects': self.objects, 'BasePlayer': objects.BasePlayer, 'Object': objects.Object}
         if self.isHost:
-            self.script.update({'add_object': self.add_object, 'removeObject': self.removeObject, 'createObject' : self.createObject, 'makePrototype': self.makePrototype})
+            self.script.update({'add_object': self.add_object, 'remove_object': self.remove_object, 'create_object' : self.create_object, 'make_prototype': self.make_prototype})
         else:
             self.script.update({})
 

@@ -1,35 +1,28 @@
-import time,math,json,threading,sys,socket,os,tempfile,string,types,functools,pickle,copy,pygame,queue # All the modules
-from multiprocessing import Pool
-from traceback import print_exc
+from typing import *
 
-from pygame.locals import *
-#PG_GL_CONTEXT_PROFILE_MASK = GL_CONTEXT_PROFILE_MASK
-from OpenGL.GL import *
-from OpenGL.GLU import *
-import numpy as np
+import time, json, sys, pygame, queue
 
-import camera, wrapper, util, objects, ai, editor, actions, packets
-import physics.physics as physics
-#from util import genBounds, genNormals, convertColour, checkWinding
-from objects import Object, OtherPlayer, Player
+import pygame.locals as pg_locals
+from OpenGL import GL as gl
+
+import wrapper, util, editor, packets, networking
+from objects import Player
 from draw import Drawer
 from client import Client
 from server import Server
-import networking
-
 
 def convert_key(key):
     try:
-        return getattr(pygame.locals, 'K_' + key)
+        return getattr(pg_locals, 'K_' + key)
     except:
         return None
 
 class Clock:  # Improved clock for linux, your mileage may vary
     def __init__(self):
-        self.prevTime = time.time()
-        self.times = []
+        self.prev_time = time.time()
+        self.times: List[float] = []
 
-    def get_fps(self):
+    def get_fps(self) -> float:
         if len(self.times) == 0:
             return -1
         return len(self.times) / sum(self.times)
@@ -38,7 +31,7 @@ class Clock:  # Improved clock for linux, your mileage may vary
         if len(self.times) > 5:
             self.times.pop(0)
 
-        target = self.prevTime + 1/framerate
+        target = self.prev_time + 1/framerate
 
         t = time.time()
         if t < target:
@@ -49,8 +42,8 @@ class Clock:  # Improved clock for linux, your mileage may vary
                 pass
 
         t = time.time()
-        self.times.append(t - self.prevTime)
-        self.prevTime = t
+        self.times.append(t - self.prev_time)
+        self.prev_time = t
 
 class Local:
     def __init__(self, fancy, screen, world, players):
@@ -59,7 +52,7 @@ class Local:
 
     def update(self):
         for player in self.players:
-            player.action = player.getAction()
+            player.action = player.get_action()
         self.drawer.update()
 
     def render(self):
@@ -68,24 +61,24 @@ class Local:
     def cleanup(self):
         self.drawer.cleanup()
 
-def createWorld(level):
+def create_world(level):
     world = wrapper.World(True) # Since level file is available we must be host
     world.gravity = level.get('gravity', (0,0.3))
     world.spawn = level.get('spawn', (0,0))
 
     for data in level.get('objects',[]):
-        world.createObject(data)
+        world.create_object(data)
 
     for constraint in level.get('constraints', []):
-        objA, objB = [world.objects[level['objects'].index(data)]
+        obj_a, obj_b = [world.objects[level['objects'].index(data)]
                       for data in constraint['objects']]
-        world.addConstraint(objA, objB, constraint)
+        world.add_constraint(obj_a, obj_b, constraint)
 
-    world.loadScript(level.get('serverScript', ''))#, editor.defaultScript))
+    world.load_script(level.get('server_script', ''))#, editor.defaultScript))
 
     return world
 
-def createPlayers(world, settings):
+def create_players(world, settings):
     players = []
     for config in settings['players']:
         if config['active']:
@@ -128,21 +121,21 @@ Median : {sorted_times[len(self.times)//2]:.2f}
 ''')
 
 
-def drawSquare(lower, upper):
+def draw_square(lower: Tuple[float, float], upper: Tuple[float, float]):
     depth = 1
-    glBegin(GL_LINE_LOOP)
-    glVertex3f(lower[0], lower[1], depth)
-    glVertex3f(lower[0], upper[1], depth)
-    glVertex3f(upper[0], upper[1], depth)
-    glVertex3f(upper[0], lower[1], depth)
-    glEnd()
+    gl.glBegin(gl.GL_LINE_LOOP)
+    gl.glVertex3f(lower[0], lower[1], depth)
+    gl.glVertex3f(lower[0], upper[1], depth)
+    gl.glVertex3f(upper[0], upper[1], depth)
+    gl.glVertex3f(upper[0], lower[1], depth)
+    gl.glEnd()
 
 def configure_opengl():
-    glEnable(GL_MULTISAMPLE)
-    glClearColor(1,1,1,1)
-    glEnable(GL_DEPTH_TEST)
+    gl.glEnable(gl.GL_MULTISAMPLE)
+    gl.glClearColor(1,1,1,1)
+    gl.glEnable(gl.GL_DEPTH_TEST)
 
-def run(levelname=None, port=None, address=None):
+def run(levelname: Optional[str]=None, port: Optional[int]=None, address: Optional[str]=None):
     multiplayer = levelname is None
 
     with open('settings.json') as f:
@@ -151,52 +144,52 @@ def run(levelname=None, port=None, address=None):
     if multiplayer:
         world = wrapper.World(False)
     else:
-        level = editor.loadFile(levelname)
-        world = createWorld(level)
+        level = editor.load_file(levelname)
+        world = create_world(level)
 
-    players = createPlayers(world, settings)
+    players = create_players(world, settings)
 
     pygame.font.init()
     pygame.display.init()
 
-    pygame.display.gl_set_attribute(GL_STENCIL_SIZE, 8)
+    #pygame.display.gl_set_attribute(pg_locals.GL_STENCIL_SIZE, 8)
     if settings['multisampling'] > 1:
-        pygame.display.gl_set_attribute(GL_MULTISAMPLEBUFFERS, 1)
-        pygame.display.gl_set_attribute(GL_MULTISAMPLESAMPLES, settings['multisampling'])
+        pygame.display.gl_set_attribute(pg_locals.GL_MULTISAMPLEBUFFERS, 1)
+        pygame.display.gl_set_attribute(pg_locals.GL_MULTISAMPLESAMPLES, settings['multisampling'])
 
-    fancy = settings.get('fancy', True)
+    fancy: bool = settings.get('fancy', True)
 
-    #pygame.display.gl_set_attribute(GL_CONTEXT_MAJOR_VERSION, 4)
-    #pygame.display.gl_set_attribute(GL_CONTEXT_MINOR_VERSION, 5)
-    #pygame.display.gl_set_attribute(PG_GL_CONTEXT_PROFILE_MASK, GL_CONTEXT_PROFILE_COMPATIBILITY)
+    #pygame.display.gl_set_attribute(pg_locals.GL_CONTEXT_MAJOR_VERSION, 4)
+    #pygame.display.gl_set_attribute(pg_locals.GL_CONTEXT_MINOR_VERSION, 5)
+    #pygame.display.gl_set_attribute(pg_locals.GL_CONTEXT_PROFILE_MASK, pg_locals.GL_CONTEXT_PROFILE_COMPATIBILITY)
 
-    #print(pygame.display.gl_get_attribute(GL_CONTEXT_PROFILE_MASK))
+    #print(pygame.display.gl_get_attribute(pg_locals.GL_CONTEXT_PROFILE_MASK))
 
     display = 1600, 900
-    screen = pygame.display.set_mode(display, DOUBLEBUF|OPENGL|RESIZABLE)
-    #screen = pygame.display.set_mode(display, DOUBLEBUF|OPENGL)
-    #screen = pygame.display.set_mode(display, OPENGL)
+    screen = pygame.display.set_mode(display, pg_locals.DOUBLEBUF | pg_locals.OPENGL | pg_locals.RESIZABLE)
+    #screen = pygame.display.set_mode(display, pg_locals.DOUBLEBUF | pg_locals.OPENGL)
+    #screen = pygame.display.set_mode(display, pg_locals.OPENGL)
 
-    glEnable(GL_MULTISAMPLE)
-    glClearColor(0, 0, 0, 1)
+    gl.glEnable(gl.GL_MULTISAMPLE)
+    gl.glClearColor(0, 0, 0, 1)
 
     if fancy:
-        glEnable(GL_DEPTH_TEST)
+        gl.glEnable(gl.GL_DEPTH_TEST)
 
-        #glDepthFunc(GL_LEQUAL)
-        glClearDepth(0.0)
-        glEnable(GL_FRAMEBUFFER_SRGB)
+        #gl.glDepthFunc(gl.GL_LEQUAL)
+        gl.glClearDepth(0.0)
+        gl.glEnable(gl.GL_FRAMEBUFFER_SRGB)
 
-    #glEnable(GL_BLEND)
-    #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    #gl.glEnable(gl.GL_BLEND)
+    #gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
-    glEnable(GL_LINE_SMOOTH)
-    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+    gl.glEnable(gl.GL_LINE_SMOOTH)
+    gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
 
-    #glEnable(GL_ALPHA_TEST)
+    #gl.glEnable(gl.GL_ALPHA_TEST)
         # $ x+y=z $
 
-    glLineWidth(1.5)
+    gl.glLineWidth(1.5)
 
     if multiplayer:
         for timeout in (3, 5, 5):
@@ -224,7 +217,7 @@ def run(levelname=None, port=None, address=None):
 
     pygame.display.set_caption('Platformer')
 
-    frameTimer = FrameTimer()
+    frame_timer = FrameTimer()
 
     clock = pygame.time.Clock()
 
@@ -235,22 +228,22 @@ def run(levelname=None, port=None, address=None):
         while running:
             profiler('Events')
             for event in pygame.event.get():
-                if event.type == QUIT:
+                if event.type == pg_locals.QUIT:
                     running = False
-                elif event.type == VIDEORESIZE:
+                elif event.type == pg_locals.VIDEORESIZE:
                     if sys.platform != 'win32':
-                        # On Windows if we set_mode we get a new OpenGL context
+                        # On Windows if we set_mode we get a new Opengl.GL context
                         # Given that we don't update the screen size properly, pygame won't know the actual window size
-                        pygame.display.set_mode(event.size, DOUBLEBUF|OPENGL|RESIZABLE)
+                        pygame.display.set_mode(event.size, pg_locals.DOUBLEBUF|pg_locals.OPENGL|pg_locals.RESIZABLE)
                     updater.drawer.resize(event.size)
 
-                elif event.type == KEYDOWN:
+                elif event.type == pg_locals.KEYDOWN:
                     if not multiplayer:
                         if event.key == convert_key(settings.get('reset_button', None)):
                             updater.cleanup()
-                            level = editor.loadFile(levelname)
-                            world = createWorld(level)
-                            players = createPlayers(world, settings)
+                            level = editor.load_file(levelname)
+                            world = create_world(level)
+                            players = create_players(world, settings)
                             updater = Local(fancy, screen, world, players)
                             updater.drawer.resize()
                         '''elif event.key == K_p:
@@ -265,48 +258,49 @@ def run(levelname=None, port=None, address=None):
             #if ticking:
             updater.update()
             profiler('Render')
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
             updater.render()
 
-            '''glDepthFunc(GL_ALWAYS)
-            glPointSize(5.0)
-            glColor3f(0,1,0)
-            glBegin(GL_POINTS)
-            for contact in world.contacts:
-                for point in contact.points:
-                    glVertex2fv(point.globalA)
-            glEnd()
+            if False: # Debug contacts
+                gl.glDepthFunc(gl.GL_ALWAYS)
+                gl.glPointSize(5.0)
+                gl.glColor3f(0,1,0)
+                gl.glBegin(gl.GL_POINTS)
+                for contact in world.contacts:
+                    for point in contact.points:
+                        gl.glVertex2fv(point.global_a)
+                gl.glEnd()
 
-            glColor3f(1,0,0)
-            glBegin(GL_LINES)
-            for contact in world.contacts:
-                for point in contact.points:
-                    glVertex2fv(point.globalA)
-                    glVertex2fv(np.add(point.globalA, np.multiply(point.normal,5)))
-            glEnd()'''
+                gl.glColor3f(1,0,0)
+                gl.glBegin(gl.GL_LINES)
+                for contact in world.contacts:
+                    for point in contact.points:
+                        gl.glVertex2fv(point.global_a)
+                        gl.glVertex2fv(np.add(point.global_a, np.multiply(point.normal,5)))
+                gl.glEnd()
 
+            if False: # Debug AABB tree
+                root = world.AABBTree.root
+                def traverse(node):
+                    draw_square(*node.bounds)
 
-            '''root = world.AABBTree.root
-            def traverse(node):
-                drawSquare(*node.bounds)
-
-                if hasattr(node, 'children'):
-                    for child in node.children:
-                        traverse(child)
-            if root is not None:
-                traverse(root)'''
+                    if hasattr(node, 'children'):
+                        for child in node.children:
+                            traverse(child)
+                if root is not None:
+                    traverse(root)
 
             profiler('Flipping')
             pygame.display.flip()
             profiler('Waiting')
             clock.tick(60)
             #clock.tick()
-            frameTimer.tick()
+            frame_timer.tick()
         print('Profiler:')
         print(profiler)
         print()
         print('FPS:')
-        frameTimer.print_results()
+        frame_timer.print_results()
 
         if multiplayer:
             '''print('Writing trace')
@@ -320,16 +314,16 @@ def run(levelname=None, port=None, address=None):
         updater.cleanup()
         pygame.quit()
 
-def runServer(levelname, port):
+def run_server(levelname, port):
     commands = True
 
     if commands:
         input_queue = util.async_input()
 
-    level = editor.loadFile(levelname)
-    world = createWorld(level)
+    level = editor.load_file(levelname)
+    world = create_world(level)
 
-    server = Server(world, level.get('clientScript', None), port)
+    server = Server(world, level.get('client_script', None), port)
 
     clock = [pygame.time.Clock, Clock][sys.platform.startswith('linux')]()
 
@@ -346,8 +340,8 @@ def runServer(levelname, port):
 
                     contents = line.split()
                     if line == 'r':
-                        world = createWorld(level)
-                        server.setWorld(world, level.get('clientScript', None))
+                        world = create_world(level)
+                        server.set_world(world, level.get('client_script', None))
                         print('Refreshing level')
                     elif line == 'q':
                         break
@@ -357,12 +351,12 @@ def runServer(levelname, port):
                         else:
                             levelname = contents[1]
                             try:
-                                level = editor.loadFile(levelname)
+                                level = editor.load_file(levelname)
                             except FileNotFoundError:
                                 print('Level doesn\'t exist')
                             else:
-                                world = createWorld(level)
-                                server.setWorld(world, level.get('clientScript', None))
+                                world = create_world(level)
+                                server.set_world(world, level.get('client_script', None))
                     elif line == 'p':
                         if server.paused:
                             print('Unpausing Server')
@@ -407,7 +401,7 @@ if __name__ == '__main__':
             port = int(sys.argv[3])
             if mode == 'server':
                 level = sys.argv[2]
-                runServer(level, port)
+                run_server(level, port)
             elif mode == 'client':
                 address = sys.argv[2]
                 run(address=address, port=port)

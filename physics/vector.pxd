@@ -1,8 +1,10 @@
 
 cdef extern from "vector.h":
-   cdef cppclass Vec2d:
-      double x
-      double y
+   ctypedef float float_type
+
+   cdef cppclass Vec2:
+      float_type x
+      float_type y
       
-      Vec2d() except +
-      Vec2d(double, double) except +
+      Vec2() except +
+      Vec2(float_type, float_type) except +

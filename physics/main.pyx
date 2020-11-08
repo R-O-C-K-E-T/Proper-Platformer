@@ -10,7 +10,7 @@ from cpython.ref cimport PyObject
 
 cimport objects, aabb
 cimport physics as cPhysics
-from vector cimport Vec2d
+from vector cimport Vec2, float_type
 
 import copy, sys
 
@@ -96,9 +96,9 @@ cdef class CustomList:
    def __repr__(self):
       return repr(self._list)
 
-cdef Vec2d convert_to_vec(obj):
-   return Vec2d(obj[0],obj[1])
-cdef convert_from_vec(Vec2d vec):
+cdef Vec2 convert_to_vec(obj):
+   return Vec2(obj[0],obj[1])
+cdef convert_from_vec(Vec2 vec):
    return vec.x, vec.y
 
 cdef class BaseCollider:
@@ -129,7 +129,7 @@ cdef class PolyCollider:
       return self.points
 
    cdef objects.BaseCollider* generate(self, objects.Object *obj):
-      cdef vector[Vec2d] points_vec
+      cdef vector[Vec2] points_vec
       for point in self.points:
          points_vec.push_back(convert_to_vec(point))
       
@@ -218,13 +218,13 @@ ctypedef objects.BaseCollider* collider_pointer
 ctypedef objects.BaseConstraint* constraint_pointer
 
 cdef unordered_map[obj_pointer, py_pointer] object_map
-cdef bool global_collision_handler(objects.Object* obj_a, objects.Object* obj_b, Vec2d normal, Vec2d local_a, Vec2d local_b):
+cdef bool global_collision_handler(objects.Object* obj_a, objects.Object* obj_b, Vec2 normal, Vec2 local_a, Vec2 local_b):
    py_obj_a = <object>object_map[obj_a]
    py_obj_b = <object>object_map[obj_b]
    
    return py_obj_a.collide(py_obj_b, convert_from_vec(normal), convert_from_vec(local_a), convert_from_vec(local_b))
 
-ctypedef bool (*handler)(objects.Object*, objects.Object*, Vec2d, Vec2d, Vec2d)
+ctypedef bool (*handler)(objects.Object*, objects.Object*, Vec2, Vec2, Vec2)
 
 cdef class ColliderList(CustomList):
    cdef unordered_map[py_pointer, collider_pointer] collider_map
@@ -313,7 +313,7 @@ cdef class Object:
       pair.second = <PyObject*>self
       object_map.insert(pair)
 
-   def __init__(self, double mass, double moment, double restitution, double friction):
+   def __init__(self, float_type mass, float_type moment, float_type restitution, float_type friction):
       cdef handler collision_handler
       if hasattr(self, 'collide'):
          collision_handler = global_collision_handler
@@ -387,7 +387,7 @@ cdef class Object:
    def friction(self, val):
       self.thisptr.friction = val
 
-   def set_mass(self, double mass):
+   def set_mass(self, float_type mass):
       self.thisptr.setMass(mass)
    @property
    def mass(self):
@@ -396,7 +396,7 @@ cdef class Object:
    def inv_mass(self):
       return self.thisptr.getInvMass()
 
-   def set_moment(self, double moment):
+   def set_moment(self, float_type moment):
       self.thisptr.setMoment(moment)
    @property
    def moment(self):
@@ -407,7 +407,7 @@ cdef class Object:
 
    @property
    def pos(self):
-      cdef Vec2d pos = self.thisptr.pos
+      cdef Vec2 pos = self.thisptr.pos
       return pos.x, pos.y
    @pos.setter
    def pos(self, pos):
@@ -416,7 +416,7 @@ cdef class Object:
    
    @property
    def vel(self):
-      cdef Vec2d vel = self.thisptr.vel
+      cdef Vec2 vel = self.thisptr.vel
       return vel.x, vel.y
    @vel.setter
    def vel(self,vel):
@@ -440,8 +440,8 @@ cdef class Object:
    
    @property
    def bounds(self):
-      cdef pair[Vec2d, Vec2d] bounds = self.thisptr.getBounds()
-      return convert_from_vec(bounds.first), convert_from_vec(bounds.second)
+      cdef aabb.AABB bounds = self.thisptr.getBounds()
+      return convert_from_vec(bounds.lower), convert_from_vec(bounds.upper)
 
    def local_to_global(self, point):
       return convert_from_vec(self.thisptr.localToGlobal(convert_to_vec(point)))
@@ -476,11 +476,11 @@ cdef class Node:
 
    @property
    def children(self):
-      return create_node(self.world, self.ptr.children[0]), create_node(self.world, self.ptr.children[1])
+      return create_node(self.world, self.ptr.getChildren()[0]), create_node(self.world, self.ptr.getChildren()[1])
 
    @property
    def bounds(self):
-      return convert_from_vec(self.ptr.outer.lower), convert_from_vec(self.ptr.outer.upper)
+      return convert_from_vec(self.ptr.getOuter().lower), convert_from_vec(self.ptr.getOuter().upper)
 
 cdef class LeafNode:
    cdef aabb.Node *ptr
@@ -492,17 +492,17 @@ cdef class LeafNode:
 
    @property
    def inner_bounds(self):
-      return convert_from_vec(self.ptr.inner.lower), convert_from_vec(self.ptr.inner.upper)
+      return convert_from_vec(self.ptr.getInner().lower), convert_from_vec(self.ptr.getInner().upper)
    
    @property
    def bounds(self):
-      return convert_from_vec(self.ptr.outer.lower), convert_from_vec(self.ptr.outer.upper)
+      return convert_from_vec(self.ptr.getOuter().lower), convert_from_vec(self.ptr.getOuter().upper)
 
 cdef create_node(cPhysics.World *world, aabb.Node *c_node):
    if c_node.isLeaf():
       leaf = LeafNode()
       leaf.ptr = c_node
-      leaf.obj = <object>object_map[world.nodeMap[c_node]]
+      leaf.obj = <object>object_map[<obj_pointer>c_node]
       return leaf
    else:
       node = Node()
@@ -517,10 +517,10 @@ cdef class AABBTree:
 
    @property
    def root(self):
-      if self.world.tree.root == NULL:
+      if self.world.tree.getRoot() == NULL:
          return None
       else:
-         return create_node(self.world, self.world.tree.root)
+         return create_node(self.world, self.world.tree.getRoot())
 
 
 cdef class PyWorld(CustomList):
@@ -528,7 +528,7 @@ cdef class PyWorld(CustomList):
    cdef AABBTree
 
    def __cinit__(self, *args, **kwargs):
-      self._world = new cPhysics.World(Vec2d(0,0), -1, -1, -1, -1, 5)
+      self._world = new cPhysics.World(Vec2(0,0), -1, -1, -1, -1, 5)
       self.AABBTree = AABBTree(self)
 
    def __init__(self, gravity=(0,0.3), baumgarte_bias=0.05, solver_steps=4, slop_p=0.1, slop_r=0.05):

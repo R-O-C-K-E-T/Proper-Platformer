@@ -1,5 +1,4 @@
-#ifndef __PHYSICS_H_INCLUDED__
-#define __PHYSICS_H_INCLUDED__
+#pragma once
 
 #include <unordered_map>
 #include <vector>
@@ -11,13 +10,13 @@
 //#define DEBUG
 
 #ifdef DEBUG
-extern std::vector<Vec2d> collisions;
+extern std::vector<Vec2> collisions;
 #endif
 
 
 template <typename T, typename U> 
 struct std::hash<std::pair<T, U>> {
-   std::size_t operator()(const std::pair<T, U> &key) const {
+    std::size_t operator()(const std::pair<T, U> &key) const {
       return std::hash<T>()(key.first) ^ std::hash<U>()(key.second);
    }
 };
@@ -26,43 +25,38 @@ struct std::hash<std::pair<T, U>> {
 
 class World {
    private:
-    std::vector<Object *> objects;
+      std::vector<Object *> objects;
 
-    std::vector<std::pair<Object *, Object *>> broadphase();
-    void resolveCollision(Object *a, Object *b, const Collision &col);
+      std::vector<std::pair<Object *, Object *>> broadphase();
+      void resolveCollision(Object *a, Object *b, const Collision &col);
 
-    // std::vector<ContactConstraint> contactConstraints; // TODO make better
-    // solution
-    std::unordered_map<std::pair<Object *, Object *>, ContactConstraint>
-        contactConstraints = std::unordered_map<std::pair<Object *, Object *>,
-                                                ContactConstraint>();
+      std::unordered_map<std::pair<Object *, Object *>, ContactConstraint>
+         contactConstraints = std::unordered_map<std::pair<Object *, Object *>,
+                                                   ContactConstraint>();
 
    public:
-    std::unordered_map<Node *, Object *> nodeMap;
-    AABBTree tree;
+      AABBTree tree;
 
-    Vec2d gravity;
-    double baumgarteBias;
-    int solverSteps;
-    double slopP, slopR;
+      Vec2 gravity;
+      float_type baumgarteBias;
+      int solverSteps;
+      float_type slopP, slopR;
 
-    World(Vec2d gravity, double baumgarteBias, int solverSteps, double slopP,
-          double slopR, double aabbMargin)
-        : tree(AABBTree(aabbMargin)),
-          gravity(gravity),
-          baumgarteBias(baumgarteBias),
-          solverSteps(solverSteps),
-          slopP(slopP),
-          slopR(slopR){};
+      World(Vec2 gravity, float_type baumgarteBias, int solverSteps, float_type slopP,
+            float_type slopR, float_type aabbMargin)
+         : tree(aabbMargin),
+            gravity(gravity),
+            baumgarteBias(baumgarteBias),
+            solverSteps(solverSteps),
+            slopP(slopP),
+            slopR(slopR) {};
 
-    void update(double stepSize);
+      void update(float_type stepSize);
 
-    const std::vector<Object *> getObjects() { return objects; };
-    void clear();
-    void addObject(Object *obj);
-    void removeObject(Object *obj);
+      const std::vector<Object*> getObjects() { return objects; };
+      void clear();
+      void addObject(Object *obj);
+      void removeObject(Object *obj);
 
-    std::vector<ContactConstraint> getContacts() const;
+      std::vector<ContactConstraint> getContacts() const;
 };
-
-#endif

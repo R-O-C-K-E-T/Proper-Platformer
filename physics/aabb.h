@@ -2,57 +2,86 @@
 
 #include <cmath>
 #include <vector>
+#include <memory>
 
 #include "vector.h"
 
+class AABBTree;
+
 struct AABB {
-   Vec2d upper;
-   Vec2d lower;
+   Vec2 upper;
+   Vec2 lower;
    
-   AABB() : upper(Vec2d(NAN, NAN)), lower(Vec2d(NAN, NAN)) {}
-   AABB(Vec2d upper, Vec2d lower) : upper(upper), lower(lower) {}
+   AABB() : upper(Vec2(NAN, NAN)), lower(Vec2(NAN, NAN)) {}
+   AABB(const Vec2& upper, const Vec2& lower) : upper(upper), lower(lower) {}
 
    AABB mkUnion(const AABB& other) const;
-   AABB expand(double radius) const;
-   double area() const;
+   AABB expand(float_type radius) const;
+   float_type area() const { return (upper.x - lower.x) * (upper.y - lower.y); }
    bool contains(const AABB& other) const;
    bool intersect(const AABB& other) const;
 };
 
-struct Node {
-   Node *parent;
-   Node *children[2];
+std::ostream& operator<<(std::ostream & Str, const AABB& v);
 
-   AABB inner;
-   AABB outer;
+class Node {
+   friend AABBTree;
 
-   bool visited = false;
+   public:
+      Node() : parent(nullptr), children{nullptr, nullptr} {};
+      virtual ~Node();
+      
+      Node* getParent() { return parent; }
+      Node** getChildren() { return children; }
 
-   Node() : parent(nullptr) {
-      children[0] = nullptr;
-      children[1] = nullptr;
-   };
+      AABB getInner() const { return inner; }
+      AABB getOuter() const { return outer; }
 
-   void updateAABB(double margin);
+      bool isLeaf() const { return children[0] == nullptr; }
+   
+   protected:
+      AABB inner;
+      AABB outer;
 
-   bool isLeaf() const;
-   Node* getSibling() const;
+      // Only to be called by AABBTree
+      virtual void updateAABB(const float_type margin);
+
+   private:
+      Node *parent;
+      Node *children[2];
+
+      Node(const Node&) = delete;
+      Node& operator=(const Node&) = delete;
+      Node(Node&&) = delete;
+      Node& operator=(Node&&) = delete;
+
+      Node* getSibling();
 };
 
 class AABBTree {
-   std::vector<Node*> invalidNodes;
-   std::vector<std::pair<Node*,Node*>> pairs;
+   private:
+      std::vector<Node*> invalidNodes;
+      std::vector<std::pair<Node*,Node*>> pairs;
 
-   void insertNode(Node*, Node*);
-   void findInvalid(Node*);
-   void findPairs(Node*, Node*);
-   void crossChildren(Node*);
+      Node *root;
+
+      AABBTree(const AABBTree&) = delete;
+      AABBTree& operator=(const AABBTree&) = delete;
+      AABBTree(AABBTree&&) = delete;
+      AABBTree& operator=(AABBTree&&) = delete;
+
+      void insertNode(Node*, Node*);
+      void findInvalid(Node*);
+      void findPairs(Node*, Node*);
+      void findAllPairs(Node*);
+      void findPairsForLeaf(Node* leaf, Node* branch);
 
    public:
-      Node *root;
-      const double margin;
+      const float_type margin;
 
-      AABBTree(double margin) : root(nullptr), margin(margin) {}
+      AABBTree(float_type margin) : root(nullptr), margin(margin) {}
+
+      Node* getRoot() { return root; }
 
       Node* add(const AABB& aabb);
       void addNode(Node *node);
@@ -60,7 +89,7 @@ class AABBTree {
       //void remove(AABB aabb);
       void removeNode(Node *node);
 
-      const std::vector<std::pair<Node*,Node*>> computePairs();
+      const std::vector<std::pair<Node*,Node*>>& computePairs();
 
       void update();
 };

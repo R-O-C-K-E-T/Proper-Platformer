@@ -1,22 +1,23 @@
 #include "aabb.h"
 
 #include <algorithm>
+#include <functional>
+
+Node::~Node() {}
 
 AABB AABB::mkUnion(const AABB &other) const {
-    Vec2d high(std::max(upper.x, other.upper.x),
+    Vec2 high(std::max(upper.x, other.upper.x),
                std::max(upper.y, other.upper.y));
-    Vec2d low(std::min(lower.x, other.lower.x),
+    Vec2 low(std::min(lower.x, other.lower.x),
               std::min(lower.y, other.lower.y));
     return AABB(high, low);
 }
 
-AABB AABB::expand(double radius) const {
-    Vec2d high(upper.x + radius, upper.y + radius);
-    Vec2d low(lower.x - radius, lower.y - radius);
+AABB AABB::expand(float_type radius) const {
+    Vec2 high(upper.x + radius, upper.y + radius);
+    Vec2 low(lower.x - radius, lower.y - radius);
     return AABB(high, low);
 }
-
-double AABB::area() const { return (upper.x - lower.x) * (upper.y - lower.y); }
 
 bool AABB::contains(const AABB &other) const {
     return upper.x >= other.upper.x && upper.y >= other.upper.y &&
@@ -24,18 +25,15 @@ bool AABB::contains(const AABB &other) const {
 }
 
 bool AABB::intersect(const AABB &other) const {
-    /*return (upper.x < other.lower.x || lower.x > other.upper.x) &&
-           (upper.y < other.lower.y || lower.y > other.upper.y);*/
-
-    // return !(lower.x > other.upper.x || lower.y > other.upper.y || upper.x <
-    // other.lower.x || upper.y < other.lower.y);
     return upper.x > other.lower.x && lower.x < other.upper.x &&
            upper.y > other.lower.y && lower.y < other.upper.y;
 }
 
-bool Node::isLeaf() const { return children[0] == nullptr; }
+std::ostream& operator<<(std::ostream & Str, const AABB& v) {
+   return Str << v.lower << "-" << v.upper;
+}
 
-void Node::updateAABB(double margin) {
+void Node::updateAABB(const float_type margin) {
     if (isLeaf()) {
         outer = inner.expand(margin);
     } else {
@@ -43,7 +41,7 @@ void Node::updateAABB(double margin) {
     }
 }
 
-Node *Node::getSibling() const {
+Node* Node::getSibling() {
     return parent->children[0] == this ? parent->children[1]
                                        : parent->children[0];
 }
@@ -51,12 +49,12 @@ Node *Node::getSibling() const {
 Node *AABBTree::add(const AABB &aabb) {
     Node *node = new Node();
     node->inner = aabb;
-    node->updateAABB(margin);
     addNode(node);
     return node;
 }
 
 void AABBTree::addNode(Node *node) {
+    node->updateAABB(margin);
     if (root == nullptr) {
         root = node;
     } else {
@@ -71,9 +69,8 @@ void AABBTree::insertNode(Node *node, Node *newNode) {
         if (node == root) {
             root = newParent;
         } else {
-            (node->parent->children[0] == node ? node->parent->children[0]
-                                               : node->parent->children[1]) =
-                newParent;
+            (node->parent->children[0] == node ? 
+            node->parent->children[0] : node->parent->children[1]) = newParent;
         }
 
         newParent->parent = node->parent;
@@ -87,9 +84,9 @@ void AABBTree::insertNode(Node *node, Node *newNode) {
         const AABB aabb0 = node->children[0]->outer;
         const AABB aabb1 = node->children[1]->outer;
 
-        const double areaDiff0 =
+        const float_type areaDiff0 =
             aabb0.mkUnion(newNode->outer).area() - aabb0.area();
-        const double areaDiff1 =
+        const float_type areaDiff1 =
             aabb1.mkUnion(newNode->outer).area() - aabb1.area();
 
         if (areaDiff0 < areaDiff1) {
@@ -103,6 +100,7 @@ void AABBTree::insertNode(Node *node, Node *newNode) {
 }
 
 void AABBTree::removeNode(Node *node) {
+    // Node must be leaf
     if (node == root) {
         root = nullptr;
     } else {
@@ -143,51 +141,46 @@ void AABBTree::update() {
         findInvalid(root);
         for (Node *node : invalidNodes) {
             removeNode(node);
-            node->updateAABB(margin);
             addNode(node);
         }
         invalidNodes.clear();
     }
 }
 
-void clearChildren(Node *node) {
-    node->visited = false;
-    if (!node->isLeaf()) {
-        clearChildren(node->children[0]);
-        clearChildren(node->children[1]);
+void AABBTree::findPairsForLeaf(Node* leaf, Node* branch) {
+    // Finds all collisions from a given leaf onto a node which may be a leaf
+    if (branch->isLeaf()) {
+        if (branch->inner.intersect(leaf->inner)) {
+            pairs.emplace_back(leaf, branch);
+        }
+    } else {
+        if (branch->outer.intersect(leaf->inner)) {
+            findPairsForLeaf(leaf, branch->children[0]);
+            findPairsForLeaf(leaf, branch->children[1]);
+        }
     }
 }
 
-void AABBTree::crossChildren(Node *node) {
-    if (!node->visited) {
-        findPairs(node->children[0], node->children[1]);
-        node->visited = true;
-    }
-}
-
-void AABBTree::findPairs(Node *n0, Node *n1) {
+void AABBTree::findPairs(Node* n0, Node* n1) {
+    // Finds all collisions across the two given nodes
     if (n0->isLeaf()) {
         if (n1->isLeaf()) {
             if (n0->inner.intersect(n1->inner)) {
                 pairs.emplace_back(n0, n1);
             }
         } else {
-            crossChildren(n1);
             if (n0->inner.intersect(n1->outer)) {
-                findPairs(n0, n1->children[0]);
-                findPairs(n0, n1->children[1]);
+                findPairsForLeaf(n0, n1->children[0]);
+                findPairsForLeaf(n0, n1->children[1]);
             }
         }
     } else {
         if (n1->isLeaf()) {
-            crossChildren(n0);
             if (n0->outer.intersect(n1->inner)) {
-                findPairs(n0->children[0], n1);
-                findPairs(n0->children[1], n1);
+                findPairsForLeaf(n1, n0->children[0]);
+                findPairsForLeaf(n1, n0->children[1]);
             }
         } else {
-            crossChildren(n0);
-            crossChildren(n1);
             if (n0->outer.intersect(n1->outer)) {
                 findPairs(n0->children[0], n1->children[0]);
                 findPairs(n0->children[0], n1->children[1]);
@@ -198,14 +191,19 @@ void AABBTree::findPairs(Node *n0, Node *n1) {
     }
 }
 
-const std::vector<std::pair<Node *, Node *>> AABBTree::computePairs() {
+void AABBTree::findAllPairs(Node* node) {
+    if (!node->isLeaf()) {
+        findPairs(node->children[0], node->children[1]);
+
+        findAllPairs(node->children[0]);
+        findAllPairs(node->children[1]);
+    }
+}
+
+const std::vector<std::pair<Node *, Node *>>& AABBTree::computePairs() {
     pairs.clear();
 
-    if (root == nullptr || root->isLeaf()) return pairs;
-
-    clearChildren(root);
-
-    findPairs(root->children[0], root->children[1]);
-
+    if (root == nullptr) return pairs;
+    findAllPairs(root);
     return pairs;
 }

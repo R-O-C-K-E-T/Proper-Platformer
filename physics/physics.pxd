@@ -1,27 +1,25 @@
 # distutils: language = c++
 
 from libcpp.vector cimport vector
-from libcpp.unordered_map cimport unordered_map
 cimport objects, util, aabb
-from vector cimport Vec2d
+from vector cimport Vec2, float_type
 
 
 ctypedef objects.Object* objectP
 
 cdef extern from "physics.h":
-   extern vector[Vec2d] collisions
+   extern vector[Vec2] collisions
    cdef cppclass World:
-      unordered_map[aabb.nodeP, objectP] nodeMap
       aabb.AABBTree tree
 
-      Vec2d gravity
+      Vec2 gravity
       int solverSteps
-      double baumgarteBias
-      double slopP
-      double slopR
+      float_type baumgarteBias
+      float_type slopP
+      float_type slopR
 
-      World(Vec2d, double, int, double, double, double)
-      void update(double)
+      World(Vec2, float_type, int, float_type, float_type, float_type)
+      void update(float_type)
 
       void clear()
       void addObject(objects.Object* obj)

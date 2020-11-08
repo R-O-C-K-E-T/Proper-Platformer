@@ -1,43 +1,43 @@
 from libcpp.vector cimport vector
 from libcpp.utility cimport pair
 from libcpp cimport bool
-from vector cimport Vec2d
+from vector cimport Vec2, float_type
 
 ctypedef Node* nodeP
 
 cdef extern from "aabb.h":
    cdef struct AABB:
-      Vec2d upper
-      Vec2d lower
+      Vec2 upper
+      Vec2 lower
 
       #AABB()
-      AABB(Vec2d, Vec2d)
+      AABB(Vec2, Vec2)
 
       AABB mkUnion(const AABB other)
-      AABB expand(double radius)
-      double area()
+      AABB expand(float_type radius)
+      float_type area()
       bool contains(const AABB other)
       bool intersect(const AABB other)
 
-   cdef struct Node:
-      Node* parent
-      Node* children[2]
-      AABB inner
-      AABB outer
-      bool visited
-
+   cdef cppclass Node:
       Node()
 
-      void updateAABB(double)
+      void updateAABB(float_type)
+
+      AABB getInner()
+      AABB getOuter()
 
       bool isLeaf()
+      Node* getParent()
+      Node** getChildren()
       Node* getSibling()
    
    cdef cppclass AABBTree:
-      Node *root
-      const double margin
+      const float_type margin
 
-      AABBTree(double)
+      AABBTree(float_type)
+
+      nodeP getRoot()
 
       vector[pair[nodeP,nodeP]] computePairs()
       void update()

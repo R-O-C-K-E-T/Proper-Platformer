@@ -1,6 +1,6 @@
 # distutils: language = c++
 
-from vector cimport Vec2d
+from vector cimport Vec2, float_type
 
 from libcpp.vector cimport vector
 from libcpp cimport bool
@@ -8,8 +8,8 @@ from libcpp cimport bool
 cimport objects
 
 cdef extern from "util.h":
-   bool checkWinding(vector[Vec2d])
-   bool checkWinding(Vec2d, Vec2d, Vec2d)
+   bool checkWinding(vector[Vec2])
+   bool checkWinding(Vec2, Vec2, Vec2)
 
-   double originLineDistance(Vec2d, Vec2d)
-   double lineDistance(Vec2d, Vec2d, Vec2d)
+   float_type originLineDistance(Vec2, Vec2)
+   float_type lineDistance(Vec2, Vec2, Vec2)

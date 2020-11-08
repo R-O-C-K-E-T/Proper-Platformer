@@ -867,7 +867,14 @@ class Rectangle(Create):
 
     def render(self):
         if len(self.points) == 1:
-            corners = self.points[0], shared.god.get_cursor_position()
+            corners = [self.points[0], shared.god.get_cursor_position()]
+
+            if pygame.key.get_mods() & pygame.KMOD_CTRL:
+                offset = np.subtract(corners[1], corners[0])
+
+                delta = np.max(abs(offset))
+                corners[1] = corners[0][0] + delta * util.sign(offset[0]), corners[0][1] + delta * util.sign(offset[1])
+
             points = np.array([[corners[i][0], corners[j][1]]
                                for i, j in ((0, 0), (0, 1), (1, 1), (1, 0))], int)
             self.obj = {'type':'polygon', 'points': points.tolist()}

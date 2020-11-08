@@ -110,7 +110,6 @@ def draw_loop(points, width):
 
 
 def draw_shaded(loops, base_colour, rim_colour, distance):
-    gl.glClear(gl.GL_DEPTH_BUFFER_BIT)
     gl.glDepthFunc(gl.GL_ALWAYS)
     gl.glColor3fv(base_colour)
     gl.glBegin(gl.GL_TRIANGLES)

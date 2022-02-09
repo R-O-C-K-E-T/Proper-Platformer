@@ -227,7 +227,7 @@ class ColourPicker(tk.Toplevel):
 
 
     def refresh(self, val):
-        adjusted = (self._base_wheel*255*val).astype(int)
+        adjusted = (self._base_wheel*(255*val)).astype(int)
         adjusted[self._base_wheel < 0] = 255
         self.img.put(self._format_str % tuple(adjusted.reshape(-1)))
 

@@ -9,6 +9,7 @@
 #include "aabb.h"
 #include "util.h"
 #include "vector.h"
+#include "constraint.h"
 
 #ifdef DEBUG
 std::vector<Vec2> collisions;
@@ -231,7 +232,7 @@ Collision evaluateCollision(BaseCollider *a, BaseCollider *b,
 
     Collision col;
     col.penetration = dist;
-    col.normal = Vec2(pA.res.y - pB.res.y, pB.res.x - pA.res.x).normalise();
+    col.normal = Vec2(pA.res.y - pB.res.y, pB.res.x - pA.res.x).normalised();
     
     col.localA = a->support(a->globalToLocalVec(pA.src)) * (1 - proportion) + a->support(a->globalToLocalVec(pB.src)) * proportion;
     col.localB = b->support(b->globalToLocalVec(-pA.src)) * (1 - proportion) + b->support(b->globalToLocalVec(-pB.src)) * proportion;
@@ -356,9 +357,12 @@ void World::update(float_type stepSize) {
 
 
     for (auto& entry : contactConstraints) {
+        auto V = get_velocity_vector(*entry.second.objA, *entry.second.objB);
+        auto M = get_inverse_mass_matrix(*entry.second.objA, *entry.second.objB);
         for (auto& point : entry.second.points) {
-            addVelocity(entry.second.objA, entry.second.objB, point.JM * point.nImpulseSum);
+            V += apply_constraint(point.J, M, point.nImpulseSum);
         }
+        set_velocity(*entry.second.objA, *entry.second.objB, V);
     }
     
     for (int j = 0; j < solverSteps; j++) {

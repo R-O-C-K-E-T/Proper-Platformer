@@ -10,7 +10,7 @@ from cpython.ref cimport PyObject
 
 cimport objects, aabb
 cimport physics as cPhysics
-from vector cimport Vec2, float_type
+from vector cimport Vec2, Vec3, float_type
 
 import copy, sys
 
@@ -96,10 +96,17 @@ cdef class CustomList:
    def __repr__(self):
       return repr(self._list)
 
-cdef Vec2 convert_to_vec(obj):
-   return Vec2(obj[0],obj[1])
-cdef convert_from_vec(Vec2 vec):
+cdef Vec2 convert_to_vec2(obj):
+   x, y = obj
+   return Vec2(x, y)
+cdef convert_from_vec2(Vec2 vec):
    return vec.x, vec.y
+
+cdef Vec3 convert_to_vec3(obj):
+   x, y, z = obj
+   return Vec3(x, y, z)
+cdef convert_from_vec3(Vec3 vec):
+   return vec.x, vec.y, vec.z
 
 cdef class BaseCollider:
    cdef objects.BaseCollider* generate(self, objects.Object *obj):
@@ -131,7 +138,7 @@ cdef class PolyCollider:
    cdef objects.BaseCollider* generate(self, objects.Object *obj):
       cdef vector[Vec2] points_vec
       for point in self.points:
-         points_vec.push_back(convert_to_vec(point))
+         points_vec.push_back(convert_to_vec2(point))
       
       return new objects.PolyCollider(obj, points_vec)
 
@@ -169,7 +176,7 @@ cdef class PivotConstraint(BaseConstraint):
       self.local_b = local_b
 
    cdef objects.BaseConstraint* generate(self, objects.Object *obj_a, objects.Object *obj_b):
-      return new objects.PivotConstraint(obj_a, obj_b, convert_to_vec(self.local_a), convert_to_vec(self.local_b))
+      return new objects.PivotConstraint(obj_a, obj_b, convert_to_vec2(self.local_a), convert_to_vec2(self.local_b))
 
 cdef class FixedConstraint:
    cdef local_a
@@ -187,7 +194,7 @@ cdef class FixedConstraint:
       return self.local_b
 
    cdef objects.BaseConstraint* generate(self, objects.Object *obj_a, objects.Object *obj_b):
-      return new objects.FixedConstraint(obj_a, obj_b, convert_to_vec(self.local_a), convert_to_vec(self.local_b))
+      return new objects.FixedConstraint(obj_a, obj_b, convert_to_vec2(self.local_a), convert_to_vec2(self.local_b))
    
 cdef class SliderConstraint:
    cdef local_a
@@ -210,7 +217,7 @@ cdef class SliderConstraint:
       self.normal = normal
 
    cdef objects.BaseConstraint* generate(self, objects.Object *obj_a, objects.Object *obj_b):
-      return new objects.SliderConstraint(obj_a, obj_b, convert_to_vec(self.local_a), convert_to_vec(self.local_b), convert_to_vec(self.normal))
+      return new objects.SliderConstraint(obj_a, obj_b, convert_to_vec2(self.local_a), convert_to_vec2(self.local_b), convert_to_vec2(self.normal))
 
 ctypedef PyObject* py_pointer
 ctypedef objects.Object* obj_pointer
@@ -222,7 +229,7 @@ cdef bool global_collision_handler(objects.Object* obj_a, objects.Object* obj_b,
    py_obj_a = <object>object_map[obj_a]
    py_obj_b = <object>object_map[obj_b]
    
-   return py_obj_a.collide(py_obj_b, convert_from_vec(normal), convert_from_vec(local_a), convert_from_vec(local_b))
+   return py_obj_a.collide(py_obj_b, convert_from_vec2(normal), convert_from_vec2(local_a), convert_from_vec2(local_b))
 
 ctypedef bool (*handler)(objects.Object*, objects.Object*, Vec2, Vec2, Vec2)
 
@@ -411,7 +418,7 @@ cdef class Object:
       return pos.x, pos.y
    @pos.setter
    def pos(self, pos):
-      self.thisptr.pos = convert_to_vec(pos)
+      self.thisptr.pos = convert_to_vec2(pos)
       self.thisptr.updateBounds()
    
    @property
@@ -420,7 +427,7 @@ cdef class Object:
       return vel.x, vel.y
    @vel.setter
    def vel(self,vel):
-      self.thisptr.vel = convert_to_vec(vel)
+      self.thisptr.vel = convert_to_vec2(vel)
    
    @property
    def rot(self):
@@ -441,19 +448,19 @@ cdef class Object:
    @property
    def bounds(self):
       cdef aabb.AABB bounds = self.thisptr.getBounds()
-      return convert_from_vec(bounds.lower), convert_from_vec(bounds.upper)
+      return convert_from_vec2(bounds.lower), convert_from_vec2(bounds.upper)
 
    def local_to_global(self, point):
-      return convert_from_vec(self.thisptr.localToGlobal(convert_to_vec(point)))
+      return convert_from_vec2(self.thisptr.localToGlobal(convert_to_vec2(point)))
    
    def global_to_local(self, point):
-      return convert_from_vec(self.thisptr.globalToLocal(convert_to_vec(point)))
+      return convert_from_vec2(self.thisptr.globalToLocal(convert_to_vec2(point)))
 
    def local_to_global_vec(self, vec):
-      return convert_from_vec(self.thisptr.localToGlobalVec(convert_to_vec(vec)))
+      return convert_from_vec2(self.thisptr.localToGlobalVec(convert_to_vec2(vec)))
    
    def global_to_local_vec(self, vec):
-      return convert_from_vec(self.thisptr.globalToLocalVec(convert_to_vec(vec)))
+      return convert_from_vec2(self.thisptr.globalToLocalVec(convert_to_vec2(vec)))
 
 class ContactPoint:
    def __init__(self, *args):
@@ -480,7 +487,7 @@ cdef class Node:
 
    @property
    def bounds(self):
-      return convert_from_vec(self.ptr.getOuter().lower), convert_from_vec(self.ptr.getOuter().upper)
+      return convert_from_vec2(self.ptr.getOuter().lower), convert_from_vec2(self.ptr.getOuter().upper)
 
 cdef class LeafNode:
    cdef aabb.Node *ptr
@@ -492,11 +499,11 @@ cdef class LeafNode:
 
    @property
    def inner_bounds(self):
-      return convert_from_vec(self.ptr.getInner().lower), convert_from_vec(self.ptr.getInner().upper)
+      return convert_from_vec2(self.ptr.getInner().lower), convert_from_vec2(self.ptr.getInner().upper)
    
    @property
    def bounds(self):
-      return convert_from_vec(self.ptr.getOuter().lower), convert_from_vec(self.ptr.getOuter().upper)
+      return convert_from_vec2(self.ptr.getOuter().lower), convert_from_vec2(self.ptr.getOuter().upper)
 
 cdef create_node(cPhysics.World *world, aabb.Node *c_node):
    if c_node.isLeaf():
@@ -591,11 +598,11 @@ cdef class PyWorld(CustomList):
       for contact in contacts:
          c_contact = objects.ContactConstraint((<Object>contact.obj_a).thisptr, (<Object>contact.obj_b).thisptr, contact.friction, contact.restitution)
          for point in contact.points:
-            c_point.localA  = convert_to_vec(point.local_a)
-            c_point.localB  = convert_to_vec(point.local_b)
-            c_point.globalA = convert_to_vec(point.global_a)
-            c_point.globalB = convert_to_vec(point.global_b)
-            c_point.normal  = convert_to_vec(point.normal)
+            c_point.localA  = convert_to_vec2(point.local_a)
+            c_point.localB  = convert_to_vec2(point.local_b)
+            c_point.globalA = convert_to_vec2(point.global_a)
+            c_point.globalB = convert_to_vec2(point.global_b)
+            c_point.normal  = convert_to_vec2(point.normal)
             c_point.penetration = point.penetration
             c_point.nImpulseSum = point.normal_impulse_sum
             c_point.tImpulseSum = point.tangent_impulse_sum
@@ -649,9 +656,9 @@ cdef class PyWorld(CustomList):
          points = []
 
          for c_point in c_contact.points:
-            points.append((convert_from_vec(c_point.localA),convert_from_vec(c_point.localB),
-                           convert_from_vec(c_point.globalA),convert_from_vec(c_point.globalB),
-                           convert_from_vec(c_point.normal),c_point.penetration,
+            points.append((convert_from_vec2(c_point.localA),convert_from_vec2(c_point.localB),
+                           convert_from_vec2(c_point.globalA),convert_from_vec2(c_point.globalB),
+                           convert_from_vec2(c_point.normal),c_point.penetration,
                            c_point.nImpulseSum, c_point.tImpulseSum))
 
          obj_a = <object>object_map[c_contact.objA]

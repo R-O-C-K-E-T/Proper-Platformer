@@ -1,6 +1,8 @@
 from typing import *
 
-import time, json, sys, pygame, queue
+import time, json, sys, pygame, queue, math
+from contextlib import contextmanager
+import numpy as np
 
 import pygame.locals as pg_locals
 from OpenGL import GL as gl
@@ -10,6 +12,21 @@ from objects import Player
 from draw import Drawer
 from client import Client
 from server import Server
+
+@contextmanager
+def with_framebuffer(framebuffer):
+    _, _, width, height = gl.glGetIntegerv(gl.GL_VIEWPORT)
+    gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, framebuffer)
+    gl.glViewport(0, 0, width, height)
+    try:
+        yield None
+    except:
+        gl.glBindFramebuffer(gl.GL_DRAW_FRAMEBUFFER, 0)
+        gl.glDrawBuffer(gl.GL_BACK)
+        gl.glBindFramebuffer(gl.GL_READ_FRAMEBUFFER, framebuffer)
+        gl.glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.GL_COLOR_BUFFER_BIT, gl.GL_NEAREST)
+            
+        gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0) 
 
 def convert_key(key):
     try:
@@ -130,6 +147,20 @@ def draw_square(lower: Tuple[float, float], upper: Tuple[float, float]):
     gl.glVertex3f(upper[0], lower[1], depth)
     gl.glEnd()
 
+def draw_fuzzy_circle(radius: float, colour):
+    gl.glBegin(gl.GL_TRIANGLE_FAN)
+
+    gl.glColor4f(*colour, 0.7)
+    gl.glVertex2f(0,0)
+
+    gl.glColor4f(*colour, 0)
+    N = 15
+    for i in range(N + 1):
+        a = 2*math.pi * i / N
+        gl.glVertex2f(math.cos(a)*radius, math.sin(a)*radius)
+
+    gl.glEnd()
+
 def configure_opengl():
     gl.glEnable(gl.GL_MULTISAMPLE)
     gl.glClearColor(1,1,1,1)
@@ -180,8 +211,8 @@ def run(levelname: Optional[str]=None, port: Optional[int]=None, address: Option
         gl.glClearDepth(0.0)
         gl.glEnable(gl.GL_FRAMEBUFFER_SRGB)
 
-    #gl.glEnable(gl.GL_BLEND)
-    #gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+    gl.glEnable(gl.GL_BLEND)
+    gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
     gl.glEnable(gl.GL_LINE_SMOOTH)
     gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
@@ -223,6 +254,13 @@ def run(levelname: Optional[str]=None, port: Optional[int]=None, address: Option
 
     #ticking = True
 
+    fuzzy_displaylist = gl.glGenLists(1)
+    gl.glNewList(fuzzy_displaylist, gl.GL_COMPILE)
+    draw_fuzzy_circle(1.0, (0.1,0.1,1.0))
+    gl.glEndList()
+    
+    debug = False
+    ticking = True
     try:
         running = True
         while running:
@@ -246,17 +284,19 @@ def run(levelname: Optional[str]=None, port: Optional[int]=None, address: Option
                             players = create_players(world, settings)
                             updater = Local(fancy, screen, world, players)
                             updater.drawer.resize()
-                        '''elif event.key == K_p:
+                        elif event.key == convert_key('b'):
+                            debug = not debug
+                        elif event.key == convert_key('p'):
                             ticking = not ticking
-                        elif event.key == K_t:
-                            updater.update()'''
+                        elif event.key == convert_key('t'):
+                            updater.update()
             if multiplayer:
                 pygame.display.set_caption('Platformer: {:.2f} {:.2f}±{:.2f}ms'.format(clock.get_fps(), updater.connection.rtt*1000, updater.connection.rtt_dev*1000))
             else:
                 pygame.display.set_caption('Platformer: {:.2f}'.format(clock.get_fps()))
             profiler('Updating')
-            #if ticking:
-            updater.update()
+            if ticking:
+                updater.update()
             profiler('Render')
             gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
             updater.render()

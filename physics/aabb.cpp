@@ -46,7 +46,7 @@ Node* Node::getSibling() {
                                        : parent->children[0];
 }
 
-Node *AABBTree::add(const AABB &aabb) {
+Node* AABBTree::add(const AABB &aabb) {
     Node *node = new Node();
     node->inner = aabb;
     addNode(node);

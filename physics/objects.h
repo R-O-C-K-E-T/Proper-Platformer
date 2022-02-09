@@ -63,6 +63,12 @@ class Object final : public Node {
         AABB getBounds() const { return inner; };
         void updateBounds();
         void updateRotMat();
+
+        void applyImpulse(Vec2 impulse, Vec2 position) {
+            const float_type scale = 1.0;
+            vel += impulse * (invMass * scale);
+            rotV -= (pos - position).cross(impulse) * (invMoment * scale);
+        }
     
     protected:
         virtual void updateAABB(const float_type margin) override;
@@ -164,8 +170,8 @@ struct Collision {
 
 struct ContactPoint {
     Vec2 localA, localB, globalA, globalB, normal;
-    Vec6 J, JM, JT, JTM;
-    float_type bias, tangentBias, effectiveMass, effectiveTangentMass, penetration;
+    Vec6 J, JT;
+    float_type bias, penetration;
     float_type nImpulseSum = 0;
     float_type tImpulseSum = 0;
 };

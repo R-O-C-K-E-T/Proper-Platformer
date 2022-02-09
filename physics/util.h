@@ -37,22 +37,3 @@ inline float_type originLineDistance(const Vec2& a, const Vec2& b) {
     if (l == 0) return a.length();
     return (b.x*a.y - b.y*a.x) / sqrt(l);
 }
-
-inline void addVelocity(Object *a, Object *b, const Vec6& vec) {
-    a->vel.x += vec.a;
-    a->vel.y += vec.b;
-    a->rotV += vec.c;
-    b->vel.x += vec.d;
-    b->vel.y += vec.e;
-    b->rotV += vec.f;
-}
-
-inline Vec6 getVelocityVector(const Object *a, const Object *b) {
-    return Vec6(a->vel.x, a->vel.y, a->rotV, b->vel.x, b->vel.y, b->rotV);
-}
-
-inline Vec6 getMassMatrix(const Object *a, const Object *b) {
-    return Vec6(a->getInvMass(), a->getInvMass(), a->getInvMoment(),
-                 b->getInvMass(), b->getInvMass(),
-                 b->getInvMoment());  // Diagonal inverse mass matrix
-}

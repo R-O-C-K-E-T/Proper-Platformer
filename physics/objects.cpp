@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "util.h"
+#include "constraint.h"
 
 const float_type persistenceThresh = 0.05;
 
@@ -192,17 +193,18 @@ BaseConstraint::~BaseConstraint() {
         objB->constraints.end());
 }
 
-void BaseConstraint::updateMassMatrix() { M = getMassMatrix(objA, objB); }
+void BaseConstraint::updateMassMatrix() { M = get_inverse_mass_matrix(*objA, *objB); }
 
 ContactConstraint::~ContactConstraint() {}
 
 void ContactConstraint::apply() {
-    Vec6 V = getVelocityVector(objA, objB);
+    Vec6 V = get_velocity_vector(*objA, *objB);
+    Vec6 M = get_inverse_mass_matrix(*objA, *objB);
 
     if (points.size() == 1) {
         ContactPoint& point = points[0];
 
-        float_type lambda = -(point.J.dot(V) + point.bias) / point.effectiveMass;
+        float_type lambda = resolve_constraint(point.J, M, V, point.bias);
 
         if (point.nImpulseSum + lambda < 0) {
             lambda = -point.nImpulseSum;
@@ -210,20 +212,20 @@ void ContactConstraint::apply() {
         } else {
             point.nImpulseSum += lambda;
         }
-
         if (std::isnan(lambda)) return;
 
-        addVelocity(objA, objB, point.JM * lambda);
+        V += apply_constraint(point.J, M, lambda);
     } else if (points.size() == 2) {
         ContactPoint& pointA = points[0];
         ContactPoint& pointB = points[1];
 
-        mat2x2 mat;
-        mat.a = pointA.effectiveMass;
-        mat.b = mat.c = pointB.J.dot(pointA.JM);
-        mat.d = pointB.effectiveMass;
+        std::array<Vec6, 2> J {
+            pointA.J,
+            pointB.J
+        };
 
-        Vec2 lambda = mat.solve(-(pointA.J.dot(V) + pointA.bias), -(pointB.J.dot(V) + pointB.bias));
+        Vec2 lambda = resolve_constraint(J, M, V, Vec2(pointA.bias, pointB.bias));
+
 
         if (std::isnan(lambda.x) || std::isnan(lambda.y)) return;
 
@@ -231,12 +233,10 @@ void ContactConstraint::apply() {
         bool sepB = lambda.y + pointB.nImpulseSum < 0;
 
         if (sepA && !sepB) {  // A separating, B holding
-            addVelocity(objA, objB, pointA.JM * -pointA.nImpulseSum);
+            V += apply_constraint(pointA.J, M, -pointA.nImpulseSum);
             pointA.nImpulseSum = 0;
 
-            V = getVelocityVector(objA, objB);
-
-            float_type lambda = -(pointB.J.dot(V) + pointB.bias) / pointB.effectiveMass;
+            float_type lambda = resolve_constraint(pointB.J, M, V, pointB.bias);
 
             if (pointB.nImpulseSum + lambda < 0) {
                 lambda = -pointB.nImpulseSum;
@@ -244,15 +244,13 @@ void ContactConstraint::apply() {
             } else {
                 pointB.nImpulseSum += lambda;
             }
-
-            addVelocity(objA, objB, pointB.JM * lambda);
+            
+            V += apply_constraint(pointB.J, M, lambda);
         } else if (sepB && !sepA) {  // B separating, A holding
-            addVelocity(objA, objB, pointB.JM * -pointB.nImpulseSum);
+            V += apply_constraint(pointB.J, M, -pointB.nImpulseSum);
             pointB.nImpulseSum = 0;
 
-            V = getVelocityVector(objA, objB);
-
-            float_type lambda = -(pointA.J.dot(V) + pointA.bias) / pointA.effectiveMass;
+            float_type lambda = resolve_constraint(pointA.J, M, V, pointA.bias);
 
             if (pointA.nImpulseSum + lambda < 0) {
                 lambda = -pointA.nImpulseSum;
@@ -261,7 +259,7 @@ void ContactConstraint::apply() {
                 pointA.nImpulseSum += lambda;
             }
 
-            addVelocity(objA, objB, pointA.JM * lambda);
+            V += apply_constraint(pointA.J, M, lambda);
         } else {
             if (sepA && sepB) {  // Both separating
                 lambda.x = -pointA.nImpulseSum;
@@ -272,15 +270,12 @@ void ContactConstraint::apply() {
                 pointA.nImpulseSum += lambda.x;
                 pointB.nImpulseSum += lambda.y;
             }
-            addVelocity(objA, objB, pointA.JM * lambda.x + pointB.JM * lambda.y);
+            V += apply_constraint(J, M, lambda);
         }
     }
 
     for (ContactPoint& point : points) {  // Friction
-        V = getVelocityVector(objA, objB);
-
-        float_type lambda = -(point.JT.dot(V) + point.tangentBias) / point.effectiveTangentMass;
-
+        float_type lambda = resolve_constraint(point.JT, M, V, (float_type)0.0);
 
         if (points.size() == 2) lambda *= 0.5;
 
@@ -293,8 +288,9 @@ void ContactConstraint::apply() {
         lambda = newTImpulseSum - point.tImpulseSum;
         point.tImpulseSum = newTImpulseSum;
 
-        addVelocity(objA, objB, point.JTM * lambda);
+        V += apply_constraint(point.JT, M, lambda);
     }
+    set_velocity(*objA, *objB, V);
 }
 
 void ContactConstraint::updatePoints(const float_type baumgarteBias, const float_type slopP, const float_type slopR, const Vec2& tickGravity) {
@@ -347,27 +343,15 @@ void ContactConstraint::updatePoints(const float_type baumgarteBias, const float
         points.push_back(pB);
     }
 
-    const Vec6 M = getMassMatrix(objA, objB);
-    const float_type factor = 1.0;
     for (ContactPoint& point : points) {
         Vec2 offsetA = objA->localToGlobalVec(point.localA);
         Vec2 offsetB = objB->localToGlobalVec(point.localB);
 
         point.J = Vec6(-point.normal.x, -point.normal.y, point.normal.cross(offsetA), point.normal.x, point.normal.y, -point.normal.cross(offsetB));
-        point.JM = point.J.componentMultiply(M);
-        point.effectiveMass = point.JM.dot(point.J);
-
-        /*std::cout << objA->pos << "," << objB->pos << "," << point.effectiveMass << std::endl;
-        */
-        if (std::isnan(point.effectiveMass)) {
-            exit(1);
-        }
 
         Vec2 tangent(-point.normal.y, point.normal.x);
         point.JT = Vec6(-tangent.x, -tangent.y, tangent.cross(offsetA), tangent.x,
                  tangent.y, -tangent.cross(offsetB));
-        point.JTM = point.JT.componentMultiply(M);
-        point.effectiveTangentMass = point.JTM.dot(point.JT);
 
         Vec2 velA = objA->vel + Vec2(-offsetA.y, offsetA.x) * objA->rotV;
         if (objA->getInvMass() != 0) velA -= tickGravity;
@@ -375,24 +359,11 @@ void ContactConstraint::updatePoints(const float_type baumgarteBias, const float
         Vec2 velB = objB->vel + Vec2(-offsetB.y, offsetB.x) * objB->rotV;
         if (objB->getInvMass() != 0) velB -= tickGravity;
 
-        float_type prevBias = point.bias;
-        
         float_type closingVelocity = (velB - velA).dot(point.normal);
-
-        /*if (objA->getInvMass() != 0 && objB->getInvMass() == 0) {
-            closingVelocity -= (tickGravity - ORIGIN).dot(point.normal);
-        } else if (objA->getInvMass() == 0 && objB->getInvMass() != 0) {
-            closingVelocity -= (ORIGIN - tickGravity).dot(point.normal);
-        }*/
 
         point.bias = -baumgarteBias * std::max(point.penetration - slopP, -slopP*(float_type)0.5) + 
                     std::min(closingVelocity + slopR, (float_type)0.0) * restitution;
 
-        point.tangentBias = 0.0;// -1000 * (point.globalB - point.globalA).dot(tangent);
-
-        //point.nImpulseSum = 0.0;
-        point.nImpulseSum *= factor;
-        //point.nImpulseSum = std::max((point.nImpulseSum * factor) + (prevBias - point.bias) / point.effectiveMass, 0.0);
         point.tImpulseSum = 0;
     }
 }
@@ -437,21 +408,17 @@ void PivotConstraint::apply(const float_type baumgarteBias, const float_type slo
     Vec2 rA = objA->localToGlobalVec(localA);
     Vec2 rB = objB->localToGlobalVec(localB);
 
-    Vec6 V = getVelocityVector(objA, objB);
+    Vec6 V = get_velocity_vector(*objA, *objB);
 
-    Vec2 d = objB->pos + rB - objA->pos - rA;
+    std::array<Vec6, 2> J = {
+        Vec6(-1,  0,  rA.y, 1, 0, -rB.y),
+        Vec6( 0, -1, -rA.x, 0, 1,  rB.x),
+    };
 
-    Vec6 J1(-1,  0,  rA.y, 1, 0, -rB.y);
-    Vec6 J2( 0, -1, -rA.x, 0, 1,  rB.x);
+    Vec2 bias = baumgarteBias * (objB->pos + rB - objA->pos - rA);
 
-    Vec6 J1M = J1.componentMultiply(M);
-    Vec6 J2M = J2.componentMultiply(M);
-    mat2x2 mat{J1.dot(J1M), J1.dot(J2M), J2.dot(J1M), J2.dot(J2M)};
-    Vec2 l = mat.invert().apply(-J1.dot(V) - baumgarteBias * d.x,
-                                 -J2.dot(V) - baumgarteBias * d.y);
-
-
-    addVelocity(objA, objB, J1M * l.x + J2M * l.y);
+    V += apply_constraint(J, M, resolve_constraint(J, M, V, bias));
+    set_velocity(*objA, *objB, V);
 }
 
 void FixedConstraint::apply(const float_type baumgarteBias, const float_type slopP,
@@ -459,28 +426,18 @@ void FixedConstraint::apply(const float_type baumgarteBias, const float_type slo
     Vec2 rA = objA->localToGlobalVec(localA);
     Vec2 rB = objB->localToGlobalVec(localB);
 
-    Vec6 V = getVelocityVector(objA, objB);
+    Vec6 V = get_velocity_vector(*objA, *objB);
 
-    Vec2 d = objB->pos + rB - objA->pos - rA;
+    std::array<Vec6, 3> J = {
+        Vec6(-1,  0,  rA.y, 1, 0, -rB.y),
+        Vec6( 0, -1, -rA.x, 0, 1,  rB.x),
+        Vec6( 0,  0,    -1, 0, 0,     1),
+    };
 
-    Vec6 J1(-1,  0,  rA.y, 1, 0, -rB.y);
-    Vec6 J2( 0, -1, -rA.x, 0, 1,  rB.x);
-    Vec6 J3( 0,  0,    -1, 0, 0,     1);
-
-    Vec6 J1M = J1.componentMultiply(M);
-    Vec6 J2M = J2.componentMultiply(M);
-    Vec6 J3M = J3.componentMultiply(M);
-
-    mat3x3 mat{J1.dot(J1M), J1.dot(J2M), J1.dot(J3M), 
-               J2.dot(J1M), J2.dot(J2M), J2.dot(J3M), 
-               J3.dot(J1M), J3.dot(J2M), J3.dot(J3M)
-            };
-
-    Vec3 l = mat.invert().apply(
-        -J1.dot(V) - baumgarteBias * d.x, -J2.dot(V) - baumgarteBias * d.y,
-        -J3.dot(V) - 2 * baumgarteBias * (objB->rot - objA->rot));
-
-    addVelocity(objA, objB, J1M * l.x + J2M * l.y + J3M * l.z);
+    Vec2 linear_bias = baumgarteBias * (objB->pos + rB - objA->pos - rA);
+    float_type rotation_bias = 2 * baumgarteBias * (objB->rot - objA->rot);
+    V += apply_constraint(J, M, resolve_constraint(J, M, V, Vec3(linear_bias.x, linear_bias.y, rotation_bias)));
+    set_velocity(*objA, *objB, V);
 }
 
 void SliderConstraint::apply(const float_type baumgarteBias, const float_type slopP,
@@ -489,21 +446,21 @@ void SliderConstraint::apply(const float_type baumgarteBias, const float_type sl
     Vec2 rB = objB->localToGlobalVec(localB);
     Vec2 normal = objA->localToGlobalVec(localN);
 
-    Vec6 V = getVelocityVector(objA, objB);
+    Vec6 V = get_velocity_vector(*objA, *objB);
 
     Vec2 d = objB->pos + rB - objA->pos - rA;
 
     Vec6 J1(-normal.x, -normal.y, -(rA + d).cross(normal), normal.x, normal.y, rB.cross(normal));
     Vec6 J2(0, 0, -1, 0, 0, 1);
 
-    Vec6 J1M = J1.componentMultiply(M);
-    Vec6 J2M = J2.componentMultiply(M);
+    Vec6 J1M = J1.component_multiply(M);
+    Vec6 J2M = J2.component_multiply(M);
 
     mat2x2 mat{J1.dot(J1M), J1.dot(J2M), J2.dot(J1M), J2.dot(J2M)};
 
-    Vec2 l = mat.invert().apply(
-        -J1.dot(V) - baumgarteBias * d.dot(normal),
-        -J2.dot(V) - 2 * baumgarteBias * (objB->rot - objA->rot));
+    Vec2 bias(-J1.dot(V) - baumgarteBias * d.dot(normal), -J2.dot(V) - 2 * baumgarteBias * (objB->rot - objA->rot));
+    Vec2 l = mat.solve(bias);
 
-    addVelocity(objA, objB, J1M * l.x + J2M * l.y);
+    V += J1M * l.x + J2M * l.y;
+    set_velocity(*objA, *objB, V);
 }

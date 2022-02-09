@@ -1,3 +1,5 @@
+from typing import *
+
 import numpy as np
 import math, random, pygame
 from typing import *
@@ -12,7 +14,7 @@ import util, camera, font, decomposition, render, actions
 OFFSET = 5
 SCALE = 0.3
 
-def calculate_props(polygon: List[util.Vec], density: float):
+def calculate_props(polygon: List[util.Vec], density: Optional[float]):
     area = sum(util.cross2d(a, b) for a, b in zip(polygon, np.roll(polygon, 1, 0))) / 2
 
     pos = np.array([sum((a[i]+b[i])*util.cross2d(a, b) for a, b in zip(polygon, np.roll(polygon, 1, 0))) for i in range(2)]) / (6*area)
@@ -28,7 +30,7 @@ def calculate_props(polygon: List[util.Vec], density: float):
 
     return mass, moment, pos
 
-def gen_polygon(points: List[util.Vec], density: float):
+def gen_polygon(points: List[util.Vec], density: Optional[float]):
     points = np.array(points, dtype=float)
     if not util.check_winding(points):
         points = points[::-1]
@@ -46,7 +48,7 @@ def circle_mass_moment(radius: float, density: float):
     return mass, moment
 
 
-def gen_circle(radius: float, density: float):
+def gen_circle(radius: float, density: Optional[float]):
     massMoment = (-1, -1) if density is None else circle_mass_moment(radius, density)
     return ([physics.CircleCollider(radius)], *massMoment)
 

@@ -1,27 +1,10 @@
 {
   "gravity": [0, 0.3],
-  "spawn": [0, -500],
+  "spawn": [0, -1500],
   "constraints": [],
-  "server_script": "def load():\n    for x in range(-25,25):\n        for y in range(-25,-5):\n            create_object({'colour':[50,50,50], 'pos':[x*20,y*20], 'radius':15, 'type':'circle', 'physics':{'density':0.2}})\n\n\n",
+  "server_script": "def load():\n    for x in range(-15,15):\n        for y in range(-45,-5):\n            create_object({'colour':[50,50,50], 'pos':[x*30,y*30], 'radius':15, 'type':'circle', 'physics':{'density':0.2}})\n\n\n\n\n",
+  "client_script": "\n# This is your client level script.\n# This script is only run by clients connected to an online server\n# As it is only run on the client it cannot access certain functions such as adding or removing objects\n# This script is only intended to be used to aid the client prediction process\n\n# Functions inside this script will be executed based on triggers bound using the level editor, similar to the server script\n\ndef on_death(player): # Called whenever any player dies.\n    pass\n\ndef load(): # Called when the level is created, note that no objects will be inside the level at this point\n    pass\n\ndef add_object(obj): # Called whenever an object is added to the world\n    pass\n\ndef tick(): # Will be called once per tick\n    pass\n\n\n",
   "objects": [
-    {
-      "colour": [60, 192, 51],
-      "friction": 0.5,
-      "restitution": 0.2,
-      "lethal": false,
-      "groups": [],
-      "type": "polygon",
-      "points": [[590, -334], [590, 95], [614, 95], [614, -334]]
-    },
-    {
-      "colour": [60, 192, 51],
-      "friction": 0.5,
-      "restitution": 0.2,
-      "lethal": false,
-      "groups": [],
-      "type": "polygon",
-      "points": [[-538, -334], [-538, 95], [-514, 95], [-514, -334]]
-    },
     {
       "colour": [61, 192, 52],
       "friction": 0.5,
@@ -29,7 +12,25 @@
       "lethal": false,
       "groups": [],
       "type": "polygon",
-      "points": [[-538, 95], [-538, 121], [614, 121], [614, 95]]
+      "points": [[-1038, 95], [-1038, 121], [1114, 121], [1114, 95]]
+    },
+    {
+      "colour": [60, 192, 51],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[-1038, -417], [-1038, 95], [-1014, 95], [-1014, -417]]
+    },
+    {
+      "colour": [60, 192, 51],
+      "friction": 0.5,
+      "restitution": 0.2,
+      "lethal": false,
+      "groups": [],
+      "type": "polygon",
+      "points": [[1090, -417], [1090, 95], [1114, 95], [1114, -417]]
     }
   ]
 }

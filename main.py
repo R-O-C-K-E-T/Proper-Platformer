@@ -197,12 +197,23 @@ def run(levelname: Optional[str]=None, port: Optional[int]=None, address: Option
     #print(pygame.display.gl_get_attribute(pg_locals.GL_CONTEXT_PROFILE_MASK))
 
     display = 1600, 900
-    screen = pygame.display.set_mode(display, pg_locals.DOUBLEBUF | pg_locals.OPENGL | pg_locals.RESIZABLE)
+    #screen = pygame.display.set_mode(display, pg_locals.DOUBLEBUF | pg_locals.OPENGL | pg_locals.RESIZABLE)
     #screen = pygame.display.set_mode(display, pg_locals.DOUBLEBUF | pg_locals.OPENGL)
-    #screen = pygame.display.set_mode(display, pg_locals.OPENGL)
+    screen = pygame.display.set_mode(display, pg_locals.OPENGL)
 
     gl.glEnable(gl.GL_MULTISAMPLE)
     gl.glClearColor(0, 0, 0, 1)
+
+    '''multisamples = 4
+    renderbuffer = gl.glGenRenderbuffers(1)
+    gl.glBindRenderbuffer(gl.GL_RENDERBUFFER, renderbuffer)
+    gl.glRenderbufferStorageMultisample(gl.GL_RENDERBUFFER, multisamples, gl.GL_RGBA8, *display)
+    gl.glBindRenderbuffer(gl.GL_RENDERBUFFER, 0)
+
+    multisample_framebuffer = int(gl.glGenFramebuffers(1))
+    gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, multisample_framebuffer)
+    gl.glFramebufferRenderbuffer(gl.GL_FRAMEBUFFER, gl.GL_COLOR_ATTACHMENT0, gl.GL_RENDERBUFFER, renderbuffer)'''
+    
 
     if fancy:
         gl.glEnable(gl.GL_DEPTH_TEST)
@@ -298,43 +309,105 @@ def run(levelname: Optional[str]=None, port: Optional[int]=None, address: Option
             if ticking:
                 updater.update()
             profiler('Render')
-            gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
-            updater.render()
+            #with with_framebuffer(multisample_framebuffer):
+            if True:
+                gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
 
-            if False: # Debug contacts
+                updater.drawer.cameras[0].load()
+                updater.drawer.cameras[0].update_position()
+
                 gl.glDepthFunc(gl.GL_ALWAYS)
-                gl.glPointSize(5.0)
-                gl.glColor3f(0,1,0)
-                gl.glBegin(gl.GL_POINTS)
-                for contact in world.contacts:
-                    for point in contact.points:
-                        gl.glVertex2fv(point.global_a)
-                gl.glEnd()
+                gl.glPushMatrix()
+                gl.glScalef(1 / world.sph_scale_factor, 1/world.sph_scale_factor, 1)
 
-                gl.glColor3f(1,0,0)
-                gl.glBegin(gl.GL_LINES)
-                for contact in world.contacts:
-                    for point in contact.points:
-                        gl.glVertex2fv(point.global_a)
-                        gl.glVertex2fv(np.add(point.global_a, np.multiply(point.normal,5)))
-                gl.glEnd()
+                for particle in world.fluid_particles:
+                    gl.glPushMatrix()
+                    gl.glTranslatef(particle.pos[0], particle.pos[1], 0)
 
-            if False: # Debug AABB tree
-                root = world.AABBTree.root
-                def traverse(node):
-                    draw_square(*node.bounds)
+                    #gl.glColor3fv(particle.col)
 
-                    if hasattr(node, 'children'):
-                        for child in node.children:
-                            traverse(child)
-                if root is not None:
-                    traverse(root)
+                    gl.glCallList(fuzzy_displaylist)
+
+                    '''gl.glColor3f(1,0,0)
+                    gl.glBegin(gl.GL_LINES)
+                    gl.glVertex2f(0,0)
+                    gl.glVertex2fv(particle.vel)
+                    gl.glEnd()'''
+
+                    gl.glPopMatrix()
+
+                if False:
+                    for particle in world.rigid_particles:
+                        gl.glPushMatrix()
+                        gl.glTranslatef(particle.pos[0], particle.pos[1], 0)
+
+                        gl.glColor3f(0,1,1)
+                        gl.glBegin(gl.GL_LINES)
+                        gl.glVertex2f(0,0)
+                        gl.glVertex2fv(particle.vel)
+                        gl.glEnd()
+
+                        gl.glPopMatrix()
+
+                gl.glPopMatrix()
+
+                updater.render()
+                
+                if debug: # Debug contacts
+                    gl.glDepthFunc(gl.GL_ALWAYS)
+                    gl.glPointSize(5.0)
+                    gl.glColor3f(0,1,0)
+                    gl.glBegin(gl.GL_POINTS)
+                    for contact in world.contacts:
+                        for point in contact.points:
+                            gl.glVertex2fv(point.global_a)
+                    gl.glEnd()
+
+                    gl.glColor3f(1,0,0)
+                    gl.glBegin(gl.GL_LINES)
+                    for contact in world.contacts:
+                        for point in contact.points:
+                            gl.glVertex2fv(point.global_a)
+                            gl.glVertex2fv(np.add(point.global_a, np.multiply(point.normal,5)))
+                    gl.glEnd()
+
+                if debug: # Debug AABB tree
+                    colours = [(1,0,0), (0,1,0), (0,0,1)]
+                    root = world.AABBTree.root
+                    def traverse(node, depth):
+                        gl.glColor3fv(colours[depth % len(colours)])
+                        draw_square(*node.bounds)
+
+                        if hasattr(node, 'children'):
+                            for child in node.children:
+                                traverse(child, depth+1)
+                    if root is not None:
+                        traverse(root, 0)
+
+                if False: # Debug fluid particles
+                    gl.glDepthFunc(gl.GL_ALWAYS)
+                    gl.glPointSize(5.0)
+                    gl.glPushMatrix()
+                    gl.glScalef(1 / world.sph_scale_factor, 1/world.sph_scale_factor, 1)
+
+                    gl.glBegin(gl.GL_POINTS)
+                    gl.glColor3f(0,0,1)
+                    for particle in world.fluid_particles:
+                        gl.glVertex2fv(particle.pos)
+                    
+                    gl.glColor3f(0,1,0)
+                    for particle in world.rigid_particles:
+                        gl.glVertex2fv(particle.pos)
+                    gl.glEnd()
+
+                    gl.glPopMatrix()
 
             profiler('Flipping')
             pygame.display.flip()
             profiler('Waiting')
             clock.tick(60)
-            #clock.tick()
+            # if world.tick % 10 == 0:
+            #     clock.tick()
             frame_timer.tick()
         print('Profiler:')
         print(profiler)

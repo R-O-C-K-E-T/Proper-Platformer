@@ -62,8 +62,8 @@ class PlayerCamera(Camera):
             self.vel[:] = self.player.vel
 
     def update(self):
-        self.load()
-        self.update_position()
+        #self.load()
+        #self.update_position()
         
         if self.fancy:
             for obj in self.player.world:

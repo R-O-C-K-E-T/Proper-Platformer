@@ -330,6 +330,21 @@ std::vector<std::pair<Object *, Object *>> World::broadphase() {
 }
 
 void World::update(float_type stepSize) {
+    Vec2 tickGravity = gravity * stepSize;
+
+    if (sph.getParticles().size()) {
+        Vec2 normalisedGravity = tickGravity * sph.getScaleFactor();
+        for (auto& particle : sph.getParticles()) {
+            particle.vel += normalisedGravity;
+        }
+        sph.singleStep(stepSize);
+
+        /*for (auto& particle : sph.getParticles()) {
+            particle.vel += normalisedGravity;
+        }
+        sph.singleStep(stepSize*0.5);*/
+    }
+
 #ifdef DEBUG
     collisions.clear();
 #endif
@@ -350,7 +365,6 @@ void World::update(float_type stepSize) {
     }
 
     float_type adjustedBaumgarteBias = baumgarteBias / stepSize;
-    Vec2 tickGravity = gravity * stepSize;
 
     for (auto& entry : contactConstraints)
         entry.second.updatePoints(adjustedBaumgarteBias, slopP, slopR, tickGravity);

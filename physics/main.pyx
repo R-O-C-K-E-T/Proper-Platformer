@@ -8,7 +8,7 @@ from morelibcpp cimport remove
 cimport libcpp.iterator
 from cpython.ref cimport PyObject
 
-cimport objects, aabb
+cimport objects, aabb, sph
 cimport physics as cPhysics
 from vector cimport Vec2, Vec3, float_type
 
@@ -529,6 +529,36 @@ cdef class AABBTree:
       else:
          return create_node(self.world, self.world.tree.getRoot())
 
+cdef class BaseParticle:
+   cdef sph.BaseParticle* ptr
+
+   @property
+   def pos(self):
+      return convert_from_vec2(self.ptr.pos)
+
+   @property
+   def vel(self):
+      return convert_from_vec2(self.ptr.vel)
+
+cdef class Particle(BaseParticle):
+   @property
+   def col(self):
+      return convert_from_vec3((<sph.Particle*>self.ptr).col)
+   @col.setter
+   def col(self, value):
+      (<sph.Particle*>self.ptr).col = convert_to_vec3(value)
+
+   @property
+   def inv_mass(self):
+      return (<sph.Particle*>self.ptr).invMass
+   @inv_mass.setter
+   def inv_mass(self, value):
+      (<sph.Particle*>self.ptr).invMass = value
+
+cdef class RigidParticle(BaseParticle):
+   @property
+   def local_position(self):
+      return convert_from_vec2((<sph.RigidParticle*>self.ptr).localPosition)
 
 cdef class PyWorld(CustomList):
    cdef cPhysics.World *_world
@@ -551,6 +581,12 @@ cdef class PyWorld(CustomList):
       self._world.removeObject((<Object>obj).thisptr)
    def _clear(self):
       self._world.clear()
+
+   def add_fluid_particle(self, pos, vel, col, mass):
+      self._world.addFluidParticle(convert_to_vec2(pos), convert_to_vec2(vel), convert_to_vec3(col), mass)
+   
+   def add_rigid_particle(self, local_pos, obj):
+      self._world.addRigidParticle(convert_to_vec2(local_pos), (<Object>obj).thisptr)
 
    def update(self, step_size):
       self._world.update(step_size)
@@ -644,6 +680,34 @@ cdef class PyWorld(CustomList):
    @slop_r.setter
    def slop_r(self, val):
       self._world.slopR = val
+
+   @property
+   def sph_scale_factor(self):
+      return self._world.getSPHScaleFactor()
+
+   @property
+   def fluid_particles(self):
+      particles = []
+
+      for i in range(self._world.getFluidParticles().size()):
+         particle = Particle()
+         particle.ptr = &self._world.getFluidParticles()[i]
+
+         particles.append(particle)
+
+      return particles
+
+   @property
+   def rigid_particles(self):
+      particles = []
+
+      for i in range(self._world.getRigidParticles().size()):
+         particle = RigidParticle()
+         particle.ptr = &self._world.getRigidParticles()[i]
+
+         particles.append(particle)
+
+      return particles
 
    @property
    def contacts(self):

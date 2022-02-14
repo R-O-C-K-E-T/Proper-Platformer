@@ -6,6 +6,7 @@
 #include "aabb.h"
 #include "objects.h"
 #include "vector.h"
+#include "sph.h"
 
 //#define DEBUG
 
@@ -34,6 +35,8 @@ class World {
          contactConstraints = std::unordered_map<std::pair<Object *, Object *>,
                                                    ContactConstraint>();
 
+      SPHSolver sph = SPHSolver(0.08);
+
    public:
       AABBTree tree;
 
@@ -57,6 +60,14 @@ class World {
       void clear();
       void addObject(Object *obj);
       void removeObject(Object *obj);
+
+      void addFluidParticle(const Vec2& pos, const Vec2& vel, const Vec3& col, float_type mass) { sph.addFluidParticle(pos, vel, col, mass); }
+      void addRigidParticle(const Vec2& localPos, Object* object) { sph.addRigidParticle(localPos, *object); }
+
+      std::vector<Particle>& getFluidParticles() { return sph.getParticles(); }
+      std::vector<RigidParticle>& getRigidParticles() { return sph.getRigidParticles(); }
+
+      float_type getSPHScaleFactor() { return sph.getScaleFactor(); }
 
       std::vector<ContactConstraint> getContacts() const;
 };

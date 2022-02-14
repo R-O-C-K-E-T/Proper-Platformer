@@ -5,7 +5,7 @@ from Cython.Build import cythonize
 setup(name='Physics Engine', ext_modules=cythonize(
     [
         Extension("physics", 
-            ["main.pyx", "physics.cpp", "objects.cpp", "aabb.cpp"])
+            ["main.pyx", "physics.cpp", "objects.cpp", "aabb.cpp", "sph.cpp"])
         ], 
         language="c++", 
         gdb_debug=True)

@@ -116,6 +116,24 @@ class Object(physics.Object):
         elif hasattr(self, 'collide'):
             delattr(self, 'collide')
 
+    def compute_rigid_particles(self):
+        spacing = 5.0
+        particles = []
+        if self.type == 'polygon':
+            for point_a, point_b in zip(self.points, np.roll(self.points, 1, 0)):
+                N = math.ceil(util.length(point_a - point_b) / spacing)
+                for i in range(N):
+                    p = i / N
+                    particles.append((point_a[0]*(1-p) + point_b[0]*p, point_a[1]*(1-p) + point_b[1]*p))
+        elif self.type == 'circle':
+            N = math.ceil(2 * math.pi * self.radius / spacing)
+            for i in range(N):
+                a = 2 * math.pi * i / N
+                particles.append((math.cos(a) * self.radius, math.sin(a) * self.radius)) 
+        else:
+            raise NotImplementedError
+        return particles
+
     def reset(self):
         self.colour = self.initial_state['colour']
         self.pos = self.initial_state['pos']
@@ -343,6 +361,15 @@ class BasePlayer(physics.Object):
 
         self.displaylist = None
         self.fancy_displaylist = None
+
+    def compute_rigid_particles(self):
+        spacing = 5.0
+        particles = []
+        N = math.ceil(2 * math.pi * BasePlayer.size / spacing)
+        for i in range(N):
+            a = 2 * math.pi * i / N
+            particles.append((math.cos(a) * BasePlayer.size, math.sin(a) * BasePlayer.size)) 
+        return particles
 
     def create_displaylist(self):
         if self.displaylist is None:

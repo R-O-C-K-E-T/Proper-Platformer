@@ -106,7 +106,11 @@ class World(physics.World):
             self.current_object_id += 1
         if isinstance(obj, objects.BasePlayer):
             self.players.append(obj)
+        
         self.append(obj)
+
+        for pos in obj.compute_rigid_particles():
+            self.add_rigid_particle(pos, obj)
 
     def remove_object(self, obj):
         self.remove(obj)
@@ -140,7 +144,7 @@ class World(physics.World):
     def load_script(self, script):
         self.script = {'players': self.players, 'time': self.tick, 'get_group': self.get_group, 'math': math, 'random':random, 'objects': self.objects, 'BasePlayer': objects.BasePlayer, 'Object': objects.Object}
         if self.isHost:
-            self.script.update({'add_object': self.add_object, 'remove_object': self.remove_object, 'create_object' : self.create_object, 'make_prototype': self.make_prototype})
+            self.script.update({'add_object': self.add_object, 'remove_object': self.remove_object, 'create_object' : self.create_object, 'make_prototype': self.make_prototype, 'add_fluid_particle': self.add_fluid_particle})
         else:
             self.script.update({})
 

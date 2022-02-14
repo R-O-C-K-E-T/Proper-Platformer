@@ -1,8 +1,8 @@
 # distutils: language = c++
 
 from libcpp.vector cimport vector
-cimport objects, util, aabb
-from vector cimport Vec2, float_type
+cimport objects, util, aabb, sph
+from vector cimport Vec2, Vec3, float_type
 
 
 ctypedef objects.Object* objectP
@@ -24,5 +24,13 @@ cdef extern from "physics.h":
       void clear()
       void addObject(objects.Object* obj)
       void removeObject(objects.Object* obj)
+
+      void addFluidParticle(Vec2, Vec2, Vec3, float_type)
+      void addRigidParticle(Vec2, objects.Object*)
+
+      vector[sph.Particle] getFluidParticles()
+      vector[sph.RigidParticle] getRigidParticles()
+
+      float_type getSPHScaleFactor()
 
       vector[objects.ContactConstraint] getContacts()
